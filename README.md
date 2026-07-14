@@ -108,18 +108,27 @@ ESLint visits files independently, so a reliable “literal appears in two files
 | [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Require runtime validation around JSON parsing | `recommended` |
 | [`require-assertions`](docs/rules/require-assertions.md) | Require assertion density in functions | `tigerstyle` |
 
-## Moving this directory into its own repository
+## Publish the first release
 
-This directory is a standalone repository seed. After copying it to a new repository root:
+The repository, package metadata, `v0.1.0` release contents, tests, and npm tarball are prepared. The first publication must establish ownership of the package on npm, so it is intentionally a manual account-authenticated operation:
 
-1. Confirm that `eslint-plugin-code-architecture` is available on npm, or choose a scoped package name.
-2. Add `repository`, `bugs`, and `homepage` URLs to `package.json` after the GitHub URL exists.
-3. Run `bun install` and commit the generated lockfile.
-4. Enable npm trusted publishing for the GitHub repository.
-5. Run `bun run check` and `npm pack --dry-run`.
-6. Create a GitHub release to trigger `.github/workflows/release.yml`.
+```sh
+cd eslint-plugin-code-architecture
+npm login
+npm run release:publish
+```
 
-The package uses npm provenance and publishes only the files named by `package.json#files`.
+`release:publish` runs `prepublishOnly` first, so lint and all rule tests must pass before npm receives the package. It explicitly publishes the unscoped package with public access. If npm requires a one-time password, enter it at the prompt.
+
+The local first release does not request provenance because npm provenance is generated from supported cloud CI environments. After `0.1.0` exists, future GitHub releases can publish through `.github/workflows/release.yml` with trusted publishing and provenance. Configure its npm trusted publisher with:
+
+- GitHub owner: `thorgas`
+- Repository: `eslint-plugin-code-architecture`
+- Workflow: `release.yml`
+- Environment: `npm`
+- Allowed action: `npm publish`
+
+The package publishes only the files named by `package.json#files` plus npm's standard metadata files.
 
 ## Development
 

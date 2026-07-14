@@ -38,12 +38,13 @@
     "lint": "eslint .",
     "pack:check": "npm pack --dry-run",
     "prepublishOnly": "bun run check",
+    "release:check": "npm publish --dry-run --access public",
+    "release:publish": "npm publish --access public",
     "test": "bun test",
     "test:coverage": "bun test --coverage"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "peerDependencies": {
     "eslint": ">=9 <11"

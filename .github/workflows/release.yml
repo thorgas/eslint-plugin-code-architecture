@@ -21,6 +21,7 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
       - run: bun install
       - run: bun run check
       - run: npm publish --provenance --access public
