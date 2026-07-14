@@ -15,7 +15,7 @@ See [References and attribution](docs/references.md) for the source material beh
 ## Install
 
 ```sh
-npm install --save-dev eslint eslint-plugin-code-architecture typescript-eslint
+npm install --save-dev eslint eslint-plugin-code-architecture typescript typescript-eslint
 ```
 
 ## Quick start
@@ -47,13 +47,34 @@ Presets are flat-config arrays and fall into two groups:
 - Library-agnostic: `recommended`, `tigerstyle`, and `strict`. The `strict` preset combines the other two.
 - Optional library integrations: `effect` and `react`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
 
+## Adopt incrementally in an existing codebase
+
+The presets describe a target state and intentionally report every violation. On an established codebase, enable a small baseline first, repair its findings, and then promote additional rules one at a time. Library integrations remain opt-in throughout the rollout.
+
+```js
+import architecture from "eslint-plugin-code-architecture";
+import tseslint from "typescript-eslint";
+
+export default tseslint.config({
+  files: ["src/**/*.{ts,tsx}"],
+  languageOptions: { parser: tseslint.parser },
+  plugins: { "code-architecture": architecture },
+  rules: {
+    "code-architecture/no-unsafe-type-assertions": "error",
+    "code-architecture/no-unvalidated-json-parse": "warn",
+  },
+});
+```
+
+Once warnings are resolved, change them to errors and add the next rule. Apply `effect` or `react` only to files that use the corresponding library. Project-specific rules such as `enforce-module-boundaries` and `centralize-domain-literals` still require explicit domain configuration.
+
 ## Using Biome and Oxlint alongside the plugin
 
 [Biome](https://biomejs.dev/guides/getting-started/) and [Oxlint](https://oxc.rs/docs/guide/usage/linter/quickstart) can handle formatting and broad, high-speed linting while ESLint runs only the architectural rules that remain specific to this plugin. Teams can use either tool or both; this example uses both:
 
 ```sh
 npm install --save-dev --save-exact @biomejs/biome
-npm install --save-dev oxlint eslint eslint-plugin-code-architecture typescript-eslint
+npm install --save-dev oxlint eslint eslint-plugin-code-architecture typescript typescript-eslint
 ```
 
 Create `biome.json` using the [Biome configuration guide](https://biomejs.dev/guides/getting-started/#configuration). Keep library domains opt-in as well; for example, Biome's [React domain](https://biomejs.dev/linter/domains/#react) should only be enabled in a React project:
@@ -184,6 +205,8 @@ npm pack --dry-run
 ```
 
 Every rule change should start with one observable failing test, followed by the smallest implementation and a refactor pass.
+
+`npm run smoke:package` additionally packs the publishable tarball, installs it into a clean temporary project, and runs ESLint through the package's public export.
 
 ## License
 

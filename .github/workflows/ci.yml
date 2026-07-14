@@ -24,3 +24,16 @@ jobs:
       - run: bun run check
       - if: matrix.os == 'ubuntu-latest' && matrix.bun-version == 'latest'
         run: npm pack --dry-run
+
+  package-consumer:
+    strategy:
+      matrix:
+        node-version: [20.18.0, 24]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          package-manager-cache: false
+      - run: npm run smoke:package

@@ -10,11 +10,16 @@ import noBarrelImports from "./rules/no-barrel-imports.js";
 import noUnsafeTypeAssertions from "./rules/no-unsafe-type-assertions.js";
 import noUnvalidatedJsonParse from "./rules/no-unvalidated-json-parse.js";
 import requireAssertions from "./rules/require-assertions.js";
+import packageMetadata from "./package.json" with { type: "json" };
 
 const namespace = "code-architecture";
 
 const plugin = {
-  meta: { name: "eslint-plugin-code-architecture" },
+  meta: {
+    name: packageMetadata.name,
+    namespace,
+    version: packageMetadata.version,
+  },
   configs: {},
   rules: {
     "centralize-domain-literals": centralizeDomainLiterals,

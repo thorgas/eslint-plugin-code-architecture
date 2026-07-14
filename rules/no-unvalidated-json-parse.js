@@ -10,6 +10,203 @@ const calleeName = (node) => {
 
 const isJsonParse = (node) => calleeName(node.callee) === "JSON.parse";
 
+const returnedExpression = (node) => {
+  if (
+    node.type !== "ArrowFunctionExpression" &&
+    node.type !== "FunctionExpression"
+  ) {
+    return undefined;
+  }
+  if (node.body.type !== "BlockStatement") return node.body;
+
+  const returnStatement = node.body.body.find(
+    (statement) => statement.type === "ReturnStatement",
+  );
+  return returnStatement?.argument ?? undefined;
+};
+
+const callsValidationWith = (
+  root,
+  parameterName,
+  validationCalls,
+  visitorKeys,
+) => {
+  const pending = [root];
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current) continue;
+    if (
+      current.type === "ArrowFunctionExpression" ||
+      current.type === "FunctionExpression"
+    ) {
+      continue;
+    }
+
+    if (
+      current.type === "CallExpression" &&
+      validationCalls.has(calleeName(current.callee)) &&
+      current.arguments.some(
+        (argument) =>
+          argument.type === "Identifier" && argument.name === parameterName,
+      )
+    ) {
+      return true;
+    }
+
+    for (const key of visitorKeys[current.type] ?? []) {
+      const child = current[key];
+      if (Array.isArray(child)) {
+        pending.push(...child);
+      } else if (child?.type) {
+        pending.push(child);
+      }
+    }
+  }
+
+  return false;
+};
+
+const hasPipelineValidation = (node, validationCalls, visitorKeys) => {
+  let child = node;
+  let current = node.parent;
+
+  while (current) {
+    if (
+      current.type === "CallExpression" &&
+      current.callee.type === "MemberExpression" &&
+      !current.callee.computed &&
+      current.callee.property.type === "Identifier" &&
+      current.callee.property.name === "pipe"
+    ) {
+      const parsingStage =
+        child === current.callee ? -1 : current.arguments.indexOf(child);
+
+      for (const [operatorIndex, operator] of current.arguments.entries()) {
+        if (
+          operatorIndex <= parsingStage ||
+          operator.type !== "CallExpression" ||
+          calleeName(operator.callee) !== "Effect.flatMap"
+        ) {
+          continue;
+        }
+
+        const handler = operator.arguments.at(-1);
+        const expression = handler ? returnedExpression(handler) : undefined;
+        const parameter = handler?.params?.[0];
+        if (
+          expression &&
+          parameter?.type === "Identifier" &&
+          callsValidationWith(
+            expression,
+            parameter.name,
+            validationCalls,
+            visitorKeys,
+          )
+        ) {
+          return true;
+        }
+      }
+    }
+
+    child = current;
+    current = current.parent;
+  }
+
+  return false;
+};
+
+const findContainingBinding = (node) => {
+  let current = node.parent;
+
+  while (current) {
+    if (
+      current.type === "VariableDeclarator" &&
+      current.id.type === "Identifier"
+    ) {
+      return current;
+    }
+    if (/Statement$/u.test(current.type)) return undefined;
+    current = current.parent;
+  }
+
+  return undefined;
+};
+
+const isEffectTryCallback = (node) => {
+  const property = node.parent;
+  const object = property?.parent;
+  const call = object?.parent;
+
+  return (
+    property?.type === "Property" &&
+    property.value === node &&
+    !property.computed &&
+    property.key.type === "Identifier" &&
+    property.key.name === "try" &&
+    object?.type === "ObjectExpression" &&
+    call?.type === "CallExpression" &&
+    ["Effect.try", "Effect.tryPromise"].includes(calleeName(call.callee))
+  );
+};
+
+const bindingReceivesParsedValue = (node, declarator) => {
+  let current = node.parent;
+
+  while (current && current !== declarator) {
+    if (
+      (current.type === "ArrowFunctionExpression" ||
+        current.type === "FunctionExpression") &&
+      !isEffectTryCallback(current)
+    ) {
+      return false;
+    }
+    current = current.parent;
+  }
+
+  return current === declarator;
+};
+
+const findVariable = (scope, name) => {
+  let current = scope;
+
+  while (current) {
+    const variable = current.set.get(name);
+    if (variable) return variable;
+    current = current.upper;
+  }
+
+  return undefined;
+};
+
+const isValidationArgument = (identifier, validationCalls) => {
+  const call = identifier.parent;
+  return (
+    call?.type === "CallExpression" &&
+    validationCalls.has(calleeName(call.callee)) &&
+    call.arguments.includes(identifier)
+  );
+};
+
+const hasSingleValidatedReference = (node, validationCalls, sourceCode) => {
+  const declarator = findContainingBinding(node);
+  if (!declarator || declarator.id.type !== "Identifier") return false;
+  if (!bindingReceivesParsedValue(node, declarator)) return false;
+
+  const variable = findVariable(
+    sourceCode.getScope(declarator),
+    declarator.id.name,
+  );
+  const references = variable?.references.filter(
+    (reference) => reference.identifier !== declarator.id,
+  );
+
+  return (
+    references?.length === 1 &&
+    isValidationArgument(references[0].identifier, validationCalls)
+  );
+};
+
 const hasValidationAncestor = (node, validationCalls, maximumDepth) => {
   let current = node.parent;
   let depth = 0;
@@ -69,11 +266,16 @@ const rule = {
       ],
     );
     const maximumDepth = options.maximumAncestorDepth ?? 12;
+    const sourceCode = context.sourceCode;
+    const visitorKeys = sourceCode.visitorKeys;
 
     return {
       CallExpression(node) {
         if (!isJsonParse(node)) return;
         if (hasValidationAncestor(node, validationCalls, maximumDepth)) return;
+        if (hasPipelineValidation(node, validationCalls, visitorKeys)) return;
+        if (hasSingleValidatedReference(node, validationCalls, sourceCode))
+          return;
         context.report({ node, messageId: "unvalidatedParse" });
       },
     };
