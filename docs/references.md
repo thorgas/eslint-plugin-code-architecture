@@ -1,0 +1,19 @@
+# References and attribution
+
+These rules adapt published engineering guidance; they do not claim those ideas as original work. Each mechanically enforceable idea links back to its source from the rule metadata and rule page.
+
+| Source | Rules influenced |
+| --- | --- |
+| TigerBeetle, [TigerStyle](https://tigerstyle.dev/) and [full style guide](https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md) | `require-assertions`, `max-function-lines`, `max-function-parameters`, `imports-first` |
+| Marvin Hagemeister, [The barrel file debacle](https://marvinh.dev/blog/speeding-up-javascript-ecosystem-part-7/) | `no-barrel-files`, `no-barrel-imports` |
+| TkDodo, [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase) | `enforce-module-boundaries` |
+| Sandro Maglione, [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves) | `declarative-components` |
+| Effect, [LLM standards](https://effect.website/llms-full.txt) | `effect-error-handling`, `no-unvalidated-json-parse`, `no-unsafe-type-assertions` |
+| Paul J. Philp, [Effect Patterns](https://github.com/PaulJPhilp/EffectPatterns/tree/main/rules) | `effect-error-handling` |
+| [Effect by Example](https://effectbyexample.com/) | `effect-error-handling`, `no-unvalidated-json-parse` |
+| Michael Arnaldi, [Effect guide](https://github.com/mikearnaldi/accountability/blob/main/specs/guides/effect-guide.md) | Effect error, schema, and dependency-injection policies |
+| Michael Arnaldi, [error-tracker specification](https://github.com/mikearnaldi/accountability/blob/main/specs/completed/error-tracker.md) | `effect-error-handling` |
+
+The originating project also references SurrealDB's [schema creation best practices](https://surrealdb.com/docs/surrealdb/reference-guide/schema-creation-best-practices) and [sample industry schemas](https://surrealdb.com/docs/surrealdb/reference-guide/sample-industry-schemas). Those guides require domain-aware schema review and are not represented as generic AST rules; linking them here preserves attribution without pretending a syntax check can enforce database design quality.
+
+[Evalite](https://evalite.dev/), [Agent Skills](https://agentskills.io/), and [Cursor Skills](https://cursor.com/docs/context/skills) are project tooling references rather than sources for a lint policy, so no rule is attributed to them.

@@ -1,0 +1,59 @@
+{
+  "name": "eslint-plugin-code-architecture",
+  "version": "0.1.0",
+  "description": "Portable ESLint rules for vertical architecture, TigerStyle, Effect, and runtime safety",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.18"
+  },
+  "main": "./plugin.js",
+  "exports": {
+    ".": "./plugin.js"
+  },
+  "files": [
+    "plugin.js",
+    "rules",
+    "docs",
+    "README.md"
+  ],
+  "keywords": [
+    "eslint",
+    "eslintplugin",
+    "architecture",
+    "tigerstyle",
+    "effect"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thorgas/eslint-plugin-code-architecture.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thorgas/eslint-plugin-code-architecture/issues"
+  },
+  "homepage": "https://github.com/thorgas/eslint-plugin-code-architecture#readme",
+  "scripts": {
+    "check": "bun run lint && bun run test",
+    "lint": "eslint .",
+    "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "bun run check",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "peerDependencies": {
+    "eslint": ">=9 <11"
+  },
+  "dependencies": {
+    "minimatch": "^9.0.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "typescript-eslint": "^8.48.1"
+  }
+}
