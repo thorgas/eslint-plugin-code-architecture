@@ -69,16 +69,14 @@ const reactRules = {
 };
 
 Object.assign(plugin.configs, {
-  effect: flatConfig("effect", effectRules),
-  react: flatConfig("react", reactRules),
   recommended: flatConfig("recommended", recommendedRules),
+  tigerstyle: flatConfig("tigerstyle", tigerstyleRules),
   strict: flatConfig("strict", {
     ...recommendedRules,
     ...tigerstyleRules,
-    ...effectRules,
-    ...reactRules,
   }),
-  tigerstyle: flatConfig("tigerstyle", tigerstyleRules),
+  effect: flatConfig("effect", effectRules),
+  react: flatConfig("react", reactRules),
 });
 
 export default plugin;

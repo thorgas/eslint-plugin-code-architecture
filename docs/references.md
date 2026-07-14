@@ -19,3 +19,7 @@ These rules adapt published engineering guidance; they do not claim those ideas 
 The originating project also references SurrealDB's [schema creation best practices](https://surrealdb.com/docs/surrealdb/reference-guide/schema-creation-best-practices) and [sample industry schemas](https://surrealdb.com/docs/surrealdb/reference-guide/sample-industry-schemas). Those guides require domain-aware schema review and are not represented as generic AST rules; linking them here preserves attribution without pretending a syntax check can enforce database design quality.
 
 [Evalite](https://evalite.dev/), [Agent Skills](https://agentskills.io/), and [Cursor Skills](https://cursor.com/docs/context/skills) are project tooling references rather than sources for a lint policy, so no rule is attributed to them.
+
+## Toolchain interoperability
+
+The README's combined-tooling example follows the official [Biome getting-started guide](https://biomejs.dev/guides/getting-started/), [Biome domain documentation](https://biomejs.dev/linter/domains/), [Oxlint configuration guide](https://oxc.rs/docs/guide/usage/linter/config.html), [Oxlint JavaScript-plugin status](https://oxc.rs/docs/guide/usage/linter/js-plugins.html), and [Oxlint incremental migration guidance](https://oxc.rs/docs/guide/usage/linter/migrate-from-eslint.html). These tools complement the plugin; they are not sources for its architecture policies.

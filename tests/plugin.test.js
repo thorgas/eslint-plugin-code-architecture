@@ -20,4 +20,26 @@ test("plugin exposes every rule through portable flat-config presets", () => {
   expect(plugin.configs.tigerstyle).toBeArray();
   expect(plugin.configs.effect).toBeArray();
   expect(plugin.configs.react).toBeArray();
+  expect(Object.keys(plugin.configs)).toEqual([
+    "recommended",
+    "tigerstyle",
+    "strict",
+    "effect",
+    "react",
+  ]);
+});
+
+test("strict remains library agnostic", () => {
+  const strictRules = plugin.configs.strict[0].rules;
+
+  expect(strictRules["code-architecture/require-assertions"]).toEqual([
+    "error",
+    { minimum: 2 },
+  ]);
+  expect(
+    strictRules["code-architecture/effect-error-handling"],
+  ).toBeUndefined();
+  expect(
+    strictRules["code-architecture/declarative-components"],
+  ).toBeUndefined();
 });

@@ -1,5 +1,7 @@
 # effect-error-handling
 
+> Optional Effect integration. Enable the `effect` preset only when the project installs and uses Effect.
+
 Enforces an explicit Effect error channel. It reports:
 
 - `Effect.ignore`;

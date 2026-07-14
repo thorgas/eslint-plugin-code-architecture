@@ -1,5 +1,7 @@
 # declarative-components
 
+> Optional React integration. Enable the `react` preset only when the project uses React and these component conventions.
+
 Keeps components on two paths: read/display data and send events. By default it:
 
 - bans `useState`, `useReducer`, `useEffect`, and `useLayoutEffect`;
