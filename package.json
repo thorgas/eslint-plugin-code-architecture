@@ -15,7 +15,8 @@
     "plugin.js",
     "rules",
     "docs",
-    "README.md"
+    "README.md",
+    "PUBLISHING.md"
   ],
   "keywords": [
     "eslint",
