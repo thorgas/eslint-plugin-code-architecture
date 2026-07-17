@@ -10,6 +10,8 @@ These rules adapt published engineering guidance; they do not claim those ideas 
 | Marvin Hagemeister, [The barrel file debacle](https://marvinh.dev/blog/speeding-up-javascript-ecosystem-part-7/) | `no-barrel-files`, `no-barrel-imports` |
 | TkDodo, [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase) | `enforce-module-boundaries` |
 | Sandro Maglione, [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves) | `declarative-components` |
+| Fernando Rojo, [Composition is all you need](https://www.youtube.com/watch?v=4KvbVq3Eg5w) and [Composition Pattern Guide](https://github.com/francostan/composition-pattern-starter/blob/main/docs/Pattern.md) | `prefer-composition-over-configuration`, `require-composable-root-children`, `no-root-owned-compound-parts` |
+| Vercel, [Composition](https://www.components.build/composition) | `prefer-composition-over-configuration`, `require-composable-root-children`, `no-root-owned-compound-parts` |
 | Effect, [project website](https://effect.website/) and [LLM standards](https://effect.website/llms-full.txt) | `effect-error-handling`, `no-unvalidated-json-parse`, `no-unsafe-type-assertions` |
 | Paul J. Philp, [Effect Patterns](https://github.com/PaulJPhilp/EffectPatterns/tree/main/rules) | `effect-error-handling` |
 | [Effect by Example](https://effectbyexample.com/) | `effect-error-handling`, `no-unvalidated-json-parse` |

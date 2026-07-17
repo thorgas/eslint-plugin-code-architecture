@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-code-architecture",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Portable ESLint rules for vertical architecture, TigerStyle, Effect, and runtime safety",
   "type": "module",
   "sideEffects": false,

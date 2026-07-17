@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Add an opt-in `composition` preset that keeps compound-component layout under consumer control.
+- Detect prop-driven JSX assembly while allowing data mapping beneath a root or provider boundary.
+- Require roots and providers to render children and prevent them from arranging their own compound parts.
+
 ## 0.1.1
 
 - Recognize conservatively validated `JSON.parse` results in local bindings and Effect pipelines.

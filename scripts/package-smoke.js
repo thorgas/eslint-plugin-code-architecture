@@ -44,8 +44,9 @@ import tseslint from "typescript-eslint";
 export default [
   ...architecture.configs.recommended,
   ...architecture.configs.effect,
+  ...architecture.configs.composition,
   {
-    files: ["src/**/*.ts"],
+    files: ["src/**/*.{ts,tsx}"],
     languageOptions: { parser: tseslint.parser },
   },
 ];
@@ -62,6 +63,15 @@ export const decodeConfig = (content: string) =>
   Schema.decodeUnknownSync(Config)(JSON.parse(content));
 
 export const recover = Effect.catchAll((error) => Effect.fail(error));
+`,
+  );
+  await writeFile(
+    join(consumerRoot, "src/accordion.tsx"),
+    `type RootProps = { children: unknown };
+
+export const AccordionRoot = ({ children }: RootProps) => (
+  <section>{children}</section>
+);
 `,
   );
 

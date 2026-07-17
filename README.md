@@ -2,11 +2,12 @@
 
 Portable ESLint rules that turn architectural decisions into fast, local feedback for humans and coding agents.
 
-The plugin combines three ideas:
+The plugin combines four ideas:
 
 - [TigerStyle](https://tigerstyle.dev/): explicit limits, assertion density, small interfaces, and visible error handling.
 - [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase): high-cohesion verticals with explicit dependency direction and public surfaces.
 - [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves): strict lint feedback that keeps UI components declarative.
+- [Composition is all you need](https://www.youtube.com/watch?v=4KvbVq3Eg5w): compound components whose consumers control the child hierarchy.
 
 It is ESM-only, supports ESLint flat config, and does not require type-aware linting.
 
@@ -30,6 +31,8 @@ const integrations = [
   // ...architecture.configs.effect,
   // Add only when React is installed and used:
   // ...architecture.configs.react,
+  // Add for compound components whose consumers should own layout:
+  // ...architecture.configs.composition,
 ];
 
 export default tseslint.config(
@@ -45,7 +48,7 @@ export default tseslint.config(
 Presets are flat-config arrays and fall into two groups:
 
 - Library-agnostic: `recommended`, `tigerstyle`, and `strict`. The `strict` preset combines the other two.
-- Optional library integrations: `effect` and `react`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
+- Optional library and architecture integrations: `effect`, `react`, and `composition`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
 
 ## Adopt incrementally in an existing codebase
 
@@ -66,7 +69,7 @@ export default tseslint.config({
 });
 ```
 
-Once warnings are resolved, change them to errors and add the next rule. Apply `effect` or `react` only to files that use the corresponding library. Project-specific rules such as `enforce-module-boundaries` and `centralize-domain-literals` still require explicit domain configuration.
+Once warnings are resolved, change them to errors and add the next rule. Apply `effect`, `react`, or `composition` only to files that use the corresponding library or architecture. Project-specific rules such as `enforce-module-boundaries` and `centralize-domain-literals` still require explicit domain configuration.
 
 ## Using Biome and Oxlint alongside the plugin
 
@@ -182,7 +185,7 @@ ESLint visits files independently, so a reliable “literal appears in two files
 | [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Require runtime validation around JSON parsing | `recommended` |
 | [`require-assertions`](docs/rules/require-assertions.md) | Require assertion density in functions | `tigerstyle` |
 
-## Optional library integrations
+## Optional integrations
 
 These presets are never enabled by `recommended`, `tigerstyle`, or `strict`.
 
@@ -190,6 +193,39 @@ These presets are never enabled by `recommended`, `tigerstyle`, or `strict`.
 | --- | --- | --- |
 | Effect | [`effect-error-handling`](docs/rules/effect-error-handling.md) plus [`no-barrel-imports`](docs/rules/no-barrel-imports.md) configured for `effect` and `@effect/platform` | The project installs and uses Effect |
 | React | [`declarative-components`](docs/rules/declarative-components.md) | The project installs and uses React with declarative component conventions |
+| Compound components | [`prefer-composition-over-configuration`](docs/rules/prefer-composition-over-configuration.md), [`require-composable-root-children`](docs/rules/require-composable-root-children.md), and [`no-root-owned-compound-parts`](docs/rules/no-root-owned-compound-parts.md) | Consumers should control the existence, order, and nesting of compound parts |
+
+## Consumer-owned composition
+
+The `composition` preset targets the architectural boundary shared by the LEGO approach and compound-component APIs: a root may coordinate state and infrastructure, but the consumer owns the child hierarchy.
+
+Invalid:
+
+```tsx
+function Accordion({ items, showFooter, renderFooter }) {
+  return (
+    <section>
+      {items.map((item) => <AccordionItem item={item} />)}
+      {showFooter && renderFooter()}
+    </section>
+  );
+}
+```
+
+Valid:
+
+```tsx
+<Accordion.Root open={open} setOpen={setOpen}>
+  {items.map((item) => (
+    <Accordion.Item key={item.id}>
+      <Accordion.Trigger>{item.title}</Accordion.Trigger>
+      <Accordion.Content>{item.content}</Accordion.Content>
+    </Accordion.Item>
+  ))}
+</Accordion.Root>
+```
+
+The preset deliberately does not mandate dot-notation object exports or a `state/actions/meta` context shape. Module namespace exports are equally composable, and context organization is a separate convention rather than proof that consumers control structure.
 
 ## Publishing
 
