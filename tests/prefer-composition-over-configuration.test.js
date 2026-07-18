@@ -38,6 +38,58 @@ test("reports collection and renderer props that own child assembly", () => {
   ]);
 });
 
+test("reports component-valued props rendered as JSX or called directly", () => {
+  const messages = lint(`function Panel({ FooterComponent, renderHeader }) {
+  return <section><FooterComponent />{renderHeader()}</section>;
+}
+function SlotsPanel({ slots }) {
+  return <slots.Footer />;
+}`);
+
+  expect(messages.map(({ messageId }) => messageId)).toEqual([
+    "rendererProp",
+    "rendererProp",
+    "rendererProp",
+  ]);
+});
+
+test("reports chained, optional, and aliased collection mapping", () => {
+  const messages = lint(`function List({ items }) {
+  const visibleItems = items.filter(isVisible);
+  const rows = visibleItems;
+  return <section>
+    {items.filter(isVisible).map((item) => <Row item={item} />)}
+    {items?.map((item) => <Row item={item} />)}
+    {rows.map((item) => <Row item={item} />)}
+  </section>;
+}`);
+
+  expect(messages).toHaveLength(3);
+  expect(
+    messages.every(({ messageId }) => messageId === "collectionProp"),
+  ).toBe(true);
+});
+
+test("reports structural variants and JSX assembled by a local helper", () => {
+  const messages = lint(`function Settings({ layout, showHeader, showFooter }) {
+  function content() {
+    if (layout === "compact") return <Compact><Field /></Compact>;
+    if (layout === "full") return <Full><Field /><Actions /></Full>;
+    return null;
+  }
+  return <section>
+    {showHeader && <Header />}
+    {content()}
+    {showFooter && <Footer />}
+  </section>;
+}`);
+
+  expect(messages.map(({ messageId }) => messageId).sort()).toEqual([
+    "conditionalProps",
+    "variantProp",
+  ]);
+});
+
 test("supports props member access and configurable collection names", () => {
   const messages = lint(
     `function Table(props) {
@@ -59,6 +111,19 @@ test("allows behavior props, one structural toggle, and consumer composition", (
 
 function Example({ items }) {
   return <AccordionRoot>{items.map((item) => <AccordionItem key={item.id} />)}</AccordionRoot>;
+}`);
+
+  expect(messages).toHaveLength(0);
+});
+
+test("allows visual props and collection mapping owned by the consumer", () => {
+  const messages = lint(`function Button({ color, size, disabled, children }) {
+  return <button className={color + size} disabled={disabled}>{children}</button>;
+}
+function Example({ items }) {
+  return <List.Root>
+    {items.filter(isVisible).map((item) => <List.Row key={item.id} />)}
+  </List.Root>;
 }`);
 
   expect(messages).toHaveLength(0);

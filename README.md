@@ -33,6 +33,8 @@ const integrations = [
   // ...architecture.configs.react,
   // Add for compound components whose consumers should own layout:
   // ...architecture.configs.composition,
+  // Add only to files that implement or consume strict LEGO object APIs:
+  // ...architecture.configs.lego,
 ];
 
 export default tseslint.config(
@@ -48,7 +50,7 @@ export default tseslint.config(
 Presets are flat-config arrays and fall into two groups:
 
 - Library-agnostic: `recommended`, `tigerstyle`, and `strict`. The `strict` preset combines the other two.
-- Optional library and architecture integrations: `effect`, `react`, and `composition`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
+- Optional library and architecture integrations: `effect`, `react`, `composition`, and `lego`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
 
 ## Adopt incrementally in an existing codebase
 
@@ -193,11 +195,12 @@ These presets are never enabled by `recommended`, `tigerstyle`, or `strict`.
 | --- | --- | --- |
 | Effect | [`effect-error-handling`](docs/rules/effect-error-handling.md) plus [`no-barrel-imports`](docs/rules/no-barrel-imports.md) configured for `effect` and `@effect/platform` | The project installs and uses Effect |
 | React | [`declarative-components`](docs/rules/declarative-components.md) | The project installs and uses React with declarative component conventions |
-| Compound components | [`prefer-composition-over-configuration`](docs/rules/prefer-composition-over-configuration.md), [`require-composable-root-children`](docs/rules/require-composable-root-children.md), and [`no-root-owned-compound-parts`](docs/rules/no-root-owned-compound-parts.md) | Consumers should control the existence, order, and nesting of compound parts |
+| Composition guardrails | [`prefer-composition-over-configuration`](docs/rules/prefer-composition-over-configuration.md), [`require-composable-root-children`](docs/rules/require-composable-root-children.md), and [`no-root-owned-compound-parts`](docs/rules/no-root-owned-compound-parts.md) | Consumers should control the existence, order, repetition, and nesting of UI parts |
+| LEGO compound APIs | The `composition` rules plus [`require-compound-component-api`](docs/rules/require-compound-component-api.md) and [`require-consumer-owned-compound-usage`](docs/rules/require-consumer-owned-compound-usage.md) | Selected files use the public object-namespace Provider/Root-and-parts convention |
 
 ## Consumer-owned composition
 
-The `composition` preset targets the architectural boundary shared by the LEGO approach and compound-component APIs: a root may coordinate state and infrastructure, but the consumer owns the child hierarchy.
+The `composition` preset provides portable architectural guardrails: a root may coordinate state and infrastructure, but the consumer owns the child hierarchy. It catches statically visible prop-driven hierarchy assembly, requires every top-level boundary return to reference children, and prevents a boundary from rendering its own public parts.
 
 Invalid:
 
@@ -225,7 +228,34 @@ Valid:
 </Accordion.Root>
 ```
 
-The preset deliberately does not mandate dot-notation object exports or a `state/actions/meta` context shape. Module namespace exports are equally composable, and context organization is a separate convention rather than proof that consumers control structure.
+Passing `composition` does not prove a complete LEGO architecture. The preset deliberately does not mandate dot-notation object exports, barrel files, React `useState`, or a `state/actions/meta` context shape. Module namespace exports are equally composable, and context organization is a separate convention rather than proof that consumers control structure.
+
+## Strict LEGO compound APIs
+
+The opt-in `lego` preset combines `composition` with positive, convention-oriented checks. Apply it only to files that define or consume compound APIs; ordinary screens and components are not required to become compounds.
+
+```tsx
+const CounterProvider = ({ children }) => (
+  <CounterContext.Provider value={actor}>{children}</CounterContext.Provider>
+);
+const CounterDisplay = () => <output />;
+const CounterIncrement = () => <button />;
+
+export const Counter = {
+  Provider: CounterProvider,
+  Display: CounterDisplay,
+  Increment: CounterIncrement,
+};
+
+<Counter.Provider>
+  <Counter.Display />
+  <Counter.Increment />
+</Counter.Provider>
+```
+
+By default, an identified compound object must be exported, expose `Provider` or `Root`, expose at least two additional component-valued parts, and avoid duplicate bindings. Imported or same-file compound boundaries must be open and contain a consumer-selected part from the same namespace. Configure `boundaryMembers`, `minimumParts`, `compoundNamePattern`, or `headlessCompounds` for other conventions and intentional actor/store-backed headless boundaries.
+
+The rules use deterministic same-file syntax analysis. They can validate bindings declared or imported in the current file, but they do not resolve re-export graphs, prove that a component consumes a particular context across files, or prove shared state semantics. No shared-state rule is shipped because naming a hook is not reliable evidence that state is shared. Actor and store implementations are supported without requiring React local state; teams may scope the preset and configure their boundary names without adopting `state/actions/meta`.
 
 ## Publishing
 

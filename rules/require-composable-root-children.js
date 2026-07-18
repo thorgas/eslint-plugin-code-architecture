@@ -2,6 +2,7 @@ import {
   functionName,
   readPropsParameter,
   referencedPropName,
+  unwrapExpression,
   walkNodes,
 } from "./composition-helpers.js";
 
@@ -19,11 +20,53 @@ const makeComponent = (node, pattern) => {
   const props = readPropsParameter(node.params[0]);
   return {
     acceptsChildren: [...props.bindings.values()].includes("children"),
+    aliases: new Map(),
+    allReturnsRenderChildren: true,
+    hasReturn: false,
     name,
     node,
     props,
-    rendersChildren: false,
   };
+};
+
+const returnRendersChildren = (root, component, sourceCode, seen = new Set()) => {
+  const node = unwrapExpression(root);
+  if (!node) return false;
+  if (node.type === "ConditionalExpression") {
+    return (
+      returnRendersChildren(node.consequent, component, sourceCode, seen) &&
+      returnRendersChildren(node.alternate, component, sourceCode, seen)
+    );
+  }
+  if (node.type === "LogicalExpression") {
+    return (
+      returnRendersChildren(node.left, component, sourceCode, seen) &&
+      returnRendersChildren(node.right, component, sourceCode, seen)
+    );
+  }
+  if (node.type === "SequenceExpression") {
+    return returnRendersChildren(
+      node.expressions.at(-1),
+      component,
+      sourceCode,
+      seen,
+    );
+  }
+  if (node.type === "Identifier" && !seen.has(node.name)) {
+    seen.add(node.name);
+    const resolved = component.aliases.get(node.name);
+    if (resolved) {
+      return returnRendersChildren(resolved, component, sourceCode, seen);
+    }
+  }
+  return containsChildren(node, component, sourceCode);
+};
+
+const recordReturn = (component, expression, sourceCode) => {
+  component.hasReturn = true;
+  if (!returnRendersChildren(expression, component, sourceCode)) {
+    component.allReturnsRenderChildren = false;
+  }
 };
 
 const exitFunction = (state) => {
@@ -31,10 +74,9 @@ const exitFunction = (state) => {
   if (!component) return;
   if (
     component.node.type === "ArrowFunctionExpression" &&
-    component.node.body.type !== "BlockStatement" &&
-    containsChildren(component.node.body, component, state.sourceCode)
+    component.node.body.type !== "BlockStatement"
   ) {
-    component.rendersChildren = true;
+    recordReturn(component, component.node.body, state.sourceCode);
   }
   if (!component.acceptsChildren) {
     state.context.report({
@@ -42,7 +84,7 @@ const exitFunction = (state) => {
       messageId: "missingChildren",
       data: { name: component.name },
     });
-  } else if (!component.rendersChildren) {
+  } else if (!component.hasReturn || !component.allReturnsRenderChildren) {
     state.context.report({
       node: component.node,
       messageId: "unrenderedChildren",
@@ -75,10 +117,15 @@ const makeVisitors = (state) => ({
     const component = currentComponent(state);
     if (
       component &&
-      node.argument &&
-      containsChildren(node.argument, component, state.sourceCode)
+      node.argument
     ) {
-      component.rendersChildren = true;
+      recordReturn(component, node.argument, state.sourceCode);
+    }
+  },
+  VariableDeclarator(node) {
+    const component = currentComponent(state);
+    if (component && node.id.type === "Identifier" && node.init) {
+      component.aliases.set(node.id.name, node.init);
     }
   },
 });
@@ -95,7 +142,7 @@ const rule = {
       missingChildren:
         "{{name}} is a composition boundary but does not accept children. Let the consumer provide the child hierarchy.",
       unrenderedChildren:
-        "{{name}} accepts children but does not return them. Render children inside the shared state or infrastructure boundary.",
+        "{{name}} must render children on every reachable top-level return path. Keep the consumer-owned hierarchy inside the shared state or infrastructure boundary.",
     },
     schema: [
       {

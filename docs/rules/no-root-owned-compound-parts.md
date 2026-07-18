@@ -30,7 +30,7 @@ function AccordionRoot({ children }) {
 }
 ```
 
-The rule derives `Accordion` from names such as `AccordionRoot` and `AccordionProvider`. It also understands object namespaces such as `export const Accordion = { Root, Item }`. Infrastructure such as `AccordionContext.Provider`, React Native primitives, and foreign compound components are allowed.
+The rule derives `Accordion` from names such as `AccordionRoot` and `AccordionProvider`. It also understands object namespaces, namespace imports, direct part names, aliases, common wrappers, local JSX variables, and locally owned helpers. Infrastructure such as `AccordionContext.Provider`, React Native primitives, and foreign compound components are allowed.
 
 Use `componentNamePattern` for another root naming convention. Use `allowedParts` for an intentional same-namespace infrastructure wrapper.
 

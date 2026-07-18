@@ -1,9 +1,11 @@
 import {
   containsJsx,
   functionName,
+  jsxNameParts,
   readPropsParameter,
   referencedPropName,
   referencedProps,
+  unwrapExpression,
 } from "./composition-helpers.js";
 
 const makeConfiguration = (options) => ({
@@ -31,6 +33,10 @@ const makeConfiguration = (options) => ({
   minimumConditionalProps: options.minimumConditionalProps ?? 2,
   rendererPropPattern: new RegExp(
     options.rendererPropPattern ?? "^(?:render[A-Z_]|[a-zA-Z]+Component$)",
+    "u",
+  ),
+  variantPropPattern: new RegExp(
+    options.variantPropPattern ?? "^(?:layout|mode|variant|view|type)$",
     "u",
   ),
 });
@@ -72,9 +78,11 @@ const enterFunction = (state, node) => {
     component: eligible
       ? {
           conditionalProps: new Set(),
+          aliases: new Map(),
           name,
           node,
           props: readPropsParameter(node.params[0]),
+          variantProps: new Set(),
         }
       : undefined,
   });
@@ -82,18 +90,24 @@ const enterFunction = (state, node) => {
 
 const exitFunction = (state) => {
   const component = state.functionStack.pop()?.component;
+  if (!component) return;
   if (
-    !component ||
-    component.conditionalProps.size <
-      state.configuration.minimumConditionalProps
+    component.conditionalProps.size >=
+    state.configuration.minimumConditionalProps
   ) {
-    return;
+    state.context.report({
+      node: component.node,
+      messageId: "conditionalProps",
+      data: { props: [...component.conditionalProps].sort().join(", ") },
+    });
   }
-  state.context.report({
-    node: component.node,
-    messageId: "conditionalProps",
-    data: { props: [...component.conditionalProps].sort().join(", ") },
-  });
+  if (component.variantProps.size > 0) {
+    state.context.report({
+      node: component.node,
+      messageId: "variantProp",
+      data: { props: [...component.variantProps].sort().join(", ") },
+    });
+  }
 };
 
 const recordConditionalProps = (state, test, rendered) => {
@@ -110,40 +124,82 @@ const recordConditionalProps = (state, test, rendered) => {
     if (state.configuration.configurationPropPattern.test(name)) {
       component.conditionalProps.add(name);
     }
+    if (state.configuration.variantPropPattern.test(name)) {
+      component.variantProps.add(name);
+    }
   }
 };
 
-const reportRendererProp = (state, node, component) => {
-  const calledProp = referencedPropName(node.callee, component.props);
-  if (!calledProp || !state.configuration.rendererPropPattern.test(calledProp)) {
+const resolveProp = (node, component, seen = new Set()) => {
+  const unwrapped = unwrapExpression(node);
+  if (!unwrapped) return undefined;
+  const direct = referencedPropName(unwrapped, component.props);
+  if (direct) return direct;
+  if (unwrapped.type !== "Identifier" || seen.has(unwrapped.name)) {
+    return undefined;
+  }
+  seen.add(unwrapped.name);
+  return resolveProp(component.aliases.get(unwrapped.name), component, seen);
+};
+
+const reportRenderer = (state, node, component, prop, force = false) => {
+  if (
+    !prop ||
+    (!force && !state.configuration.rendererPropPattern.test(prop)) ||
+    isConsumerOwnedAssembly(node, component)
+  ) {
     return false;
   }
   state.context.report({
     node,
     messageId: "rendererProp",
-    data: { prop: calledProp },
+    data: { prop },
   });
   return true;
+};
+
+const reportRendererProp = (state, node, component) => {
+  const calledProp = resolveProp(node.callee, component);
+  if (!calledProp || !state.configuration.rendererPropPattern.test(calledProp)) {
+    return false;
+  }
+  return reportRenderer(state, node, component, calledProp);
+};
+
+const collectionProp = (node, component, seen = new Set()) => {
+  const unwrapped = unwrapExpression(node);
+  const direct = referencedPropName(unwrapped, component.props);
+  if (direct) return direct;
+  if (unwrapped?.type === "Identifier" && !seen.has(unwrapped.name)) {
+    seen.add(unwrapped.name);
+    return collectionProp(
+      component.aliases.get(unwrapped.name),
+      component,
+      seen,
+    );
+  }
+  if (unwrapped?.type !== "CallExpression") return undefined;
+  const callee = unwrapExpression(unwrapped.callee);
+  if (callee?.type !== "MemberExpression") return undefined;
+  return collectionProp(callee.object, component, seen);
 };
 
 const handleCallExpression = (state, node) => {
   const component = currentComponent(state);
   if (!component || reportRendererProp(state, node, component)) return;
+  const callee = unwrapExpression(node.callee);
   if (
-    node.callee.type !== "MemberExpression" ||
-    node.callee.computed ||
-    node.callee.property.type !== "Identifier" ||
-    node.callee.property.name !== "map"
+    callee?.type !== "MemberExpression" ||
+    callee.computed ||
+    callee.property.type !== "Identifier" ||
+    callee.property.name !== "map"
   ) {
     return;
   }
-  const collectionProp = referencedPropName(
-    node.callee.object,
-    component.props,
-  );
+  const prop = collectionProp(callee.object, component);
   if (
-    collectionProp &&
-    state.configuration.collectionProps.has(collectionProp) &&
+    prop &&
+    state.configuration.collectionProps.has(prop) &&
     node.arguments.some((argument) =>
       containsJsx(argument, state.sourceCode),
     ) &&
@@ -152,8 +208,28 @@ const handleCallExpression = (state, node) => {
     state.context.report({
       node,
       messageId: "collectionProp",
-      data: { prop: collectionProp },
+      data: { prop },
     });
+  }
+};
+
+const handleJsxOpening = (state, node) => {
+  const component = currentComponent(state);
+  if (!component) return;
+  const parts = jsxNameParts(node.name);
+  if (parts.length === 0) return;
+  const prop = resolveProp(
+    { type: "Identifier", name: parts[0] },
+    component,
+  );
+  if (!prop) return;
+  reportRenderer(state, node, component, prop, parts.length > 1);
+};
+
+const recordAlias = (state, node) => {
+  const component = currentComponent(state);
+  if (component && node.id.type === "Identifier" && node.init) {
+    component.aliases.set(node.id.name, node.init);
   }
 };
 
@@ -166,6 +242,8 @@ const makeVisitors = (state) => ({
   IfStatement: (node) => recordConditionalProps(state, node.test, node),
   LogicalExpression: (node) =>
     recordConditionalProps(state, node.left, node),
+  JSXOpeningElement: (node) => handleJsxOpening(state, node),
+  VariableDeclarator: (node) => recordAlias(state, node),
 });
 
 const rule = {
@@ -183,6 +261,8 @@ const rule = {
         "Component conditionally assembles JSX with configuration props {{props}}. Expose composable parts so the consumer controls the structure.",
       rendererProp:
         "Component calls the '{{prop}}' renderer prop. Expose the rendered area as a composable child or compound part.",
+      variantProp:
+        "Component uses structural variant props {{props}} to select different JSX hierarchies. Expose those hierarchies for consumer composition.",
     },
     schema: [
       {
@@ -199,6 +279,7 @@ const rule = {
             default: 2,
           },
           rendererPropPattern: { type: "string" },
+          variantPropPattern: { type: "string" },
         },
       },
     ],

@@ -13,6 +13,8 @@ import noUnvalidatedJsonParse from "./rules/no-unvalidated-json-parse.js";
 import preferCompositionOverConfiguration from "./rules/prefer-composition-over-configuration.js";
 import requireAssertions from "./rules/require-assertions.js";
 import requireComposableRootChildren from "./rules/require-composable-root-children.js";
+import requireCompoundComponentApi from "./rules/require-compound-component-api.js";
+import requireConsumerOwnedCompoundUsage from "./rules/require-consumer-owned-compound-usage.js";
 import packageMetadata from "./package.json" with { type: "json" };
 
 const namespace = "code-architecture";
@@ -41,6 +43,9 @@ const plugin = {
       preferCompositionOverConfiguration,
     "require-assertions": requireAssertions,
     "require-composable-root-children": requireComposableRootChildren,
+    "require-compound-component-api": requireCompoundComponentApi,
+    "require-consumer-owned-compound-usage":
+      requireConsumerOwnedCompoundUsage,
   },
 };
 
@@ -86,6 +91,12 @@ const compositionRules = {
   [`${namespace}/require-composable-root-children`]: "error",
 };
 
+const legoRules = {
+  ...compositionRules,
+  [`${namespace}/require-compound-component-api`]: "error",
+  [`${namespace}/require-consumer-owned-compound-usage`]: "error",
+};
+
 Object.assign(plugin.configs, {
   recommended: flatConfig("recommended", recommendedRules),
   tigerstyle: flatConfig("tigerstyle", tigerstyleRules),
@@ -96,6 +107,7 @@ Object.assign(plugin.configs, {
   effect: flatConfig("effect", effectRules),
   react: flatConfig("react", reactRules),
   composition: flatConfig("composition", compositionRules),
+  lego: flatConfig("lego", legoRules),
 });
 
 export default plugin;

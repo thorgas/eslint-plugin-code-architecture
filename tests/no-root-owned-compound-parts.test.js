@@ -41,6 +41,38 @@ export const Tabs = {
   );
 });
 
+test("reports aliased bindings and locally owned helpers", () => {
+  const messages = lint(`const CounterDisplay = () => <output />;
+const Display = CounterDisplay;
+function CounterProvider({ children, ready }) {
+  function renderOwnedPart() {
+    return ready ? <Display /> : null;
+  }
+  const owned = [<Counter.Display key="display" />, renderOwnedPart()];
+  return <CounterContext.Provider>{owned}{children}</CounterContext.Provider>;
+}
+export const Counter = {
+  Provider: CounterProvider,
+  Display: CounterDisplay,
+  Increment: () => <button />,
+};`);
+
+  expect(messages).toHaveLength(2);
+  expect(messages.every(({ messageId }) => messageId === "ownedPart")).toBe(
+    true,
+  );
+});
+
+test("supports namespace imports and wrapper-defined providers", () => {
+  const messages = lint(`import * as Counter from "./counter-parts";
+const CounterProvider = memo(function CounterProvider({ children }) {
+  return <Context.Provider><Counter.Display />{children}</Context.Provider>;
+});`);
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("ownedPart");
+});
+
 test("allows infrastructure, platform primitives, and foreign compounds", () => {
   const messages = lint(`function AccordionRoot({ children }) {
   return <AccordionContext.Provider value={{}}>
