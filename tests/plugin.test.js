@@ -5,7 +5,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
   expect(plugin.meta).toEqual({
     name: "eslint-plugin-code-architecture",
     namespace: "code-architecture",
-    version: "0.1.1",
+    version: "0.2.0",
   });
   expect(Object.keys(plugin.rules).sort()).toEqual([
     "centralize-domain-literals",
@@ -17,20 +17,25 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "max-function-parameters",
     "no-barrel-files",
     "no-barrel-imports",
+    "no-root-owned-compound-parts",
     "no-unsafe-type-assertions",
     "no-unvalidated-json-parse",
+    "prefer-composition-over-configuration",
     "require-assertions",
+    "require-composable-root-children",
   ]);
   expect(plugin.configs.recommended).toBeArray();
   expect(plugin.configs.tigerstyle).toBeArray();
   expect(plugin.configs.effect).toBeArray();
   expect(plugin.configs.react).toBeArray();
+  expect(plugin.configs.composition).toBeArray();
   expect(Object.keys(plugin.configs)).toEqual([
     "recommended",
     "tigerstyle",
     "strict",
     "effect",
     "react",
+    "composition",
   ]);
 });
 
@@ -47,4 +52,15 @@ test("strict remains library agnostic", () => {
   expect(
     strictRules["code-architecture/declarative-components"],
   ).toBeUndefined();
+  expect(
+    strictRules["code-architecture/prefer-composition-over-configuration"],
+  ).toBeUndefined();
+});
+
+test("composition preset exposes only the consumer-owned layout rules", () => {
+  expect(plugin.configs.composition[0].rules).toEqual({
+    "code-architecture/no-root-owned-compound-parts": "error",
+    "code-architecture/prefer-composition-over-configuration": "error",
+    "code-architecture/require-composable-root-children": "error",
+  });
 });

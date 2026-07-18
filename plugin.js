@@ -7,9 +7,12 @@ import maxFunctionLines from "./rules/max-function-lines.js";
 import maxFunctionParameters from "./rules/max-function-parameters.js";
 import noBarrelFiles from "./rules/no-barrel-files.js";
 import noBarrelImports from "./rules/no-barrel-imports.js";
+import noRootOwnedCompoundParts from "./rules/no-root-owned-compound-parts.js";
 import noUnsafeTypeAssertions from "./rules/no-unsafe-type-assertions.js";
 import noUnvalidatedJsonParse from "./rules/no-unvalidated-json-parse.js";
+import preferCompositionOverConfiguration from "./rules/prefer-composition-over-configuration.js";
 import requireAssertions from "./rules/require-assertions.js";
+import requireComposableRootChildren from "./rules/require-composable-root-children.js";
 import packageMetadata from "./package.json" with { type: "json" };
 
 const namespace = "code-architecture";
@@ -31,9 +34,13 @@ const plugin = {
     "max-function-parameters": maxFunctionParameters,
     "no-barrel-files": noBarrelFiles,
     "no-barrel-imports": noBarrelImports,
+    "no-root-owned-compound-parts": noRootOwnedCompoundParts,
     "no-unsafe-type-assertions": noUnsafeTypeAssertions,
     "no-unvalidated-json-parse": noUnvalidatedJsonParse,
+    "prefer-composition-over-configuration":
+      preferCompositionOverConfiguration,
     "require-assertions": requireAssertions,
+    "require-composable-root-children": requireComposableRootChildren,
   },
 };
 
@@ -73,6 +80,12 @@ const reactRules = {
   [`${namespace}/declarative-components`]: "error",
 };
 
+const compositionRules = {
+  [`${namespace}/no-root-owned-compound-parts`]: "error",
+  [`${namespace}/prefer-composition-over-configuration`]: "error",
+  [`${namespace}/require-composable-root-children`]: "error",
+};
+
 Object.assign(plugin.configs, {
   recommended: flatConfig("recommended", recommendedRules),
   tigerstyle: flatConfig("tigerstyle", tigerstyleRules),
@@ -82,6 +95,7 @@ Object.assign(plugin.configs, {
   }),
   effect: flatConfig("effect", effectRules),
   react: flatConfig("react", reactRules),
+  composition: flatConfig("composition", compositionRules),
 });
 
 export default plugin;
