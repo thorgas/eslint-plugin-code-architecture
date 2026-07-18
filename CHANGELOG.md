@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Repair the `composition` guardrails for component props, member slots, chained and optional collection mapping, aliases, structural variants, local helpers, wrapped Providers, and all-return-path children checks.
+- Add the opt-in `lego` preset with positive exported compound API and consumer-owned usage enforcement.
+- Document same-file and type-aware limits honestly; shared-state naming heuristics remain deliberately out of scope.
+
 ## 0.2.0
 
 - Add an opt-in `composition` preset that keeps compound-component layout under consumer control.

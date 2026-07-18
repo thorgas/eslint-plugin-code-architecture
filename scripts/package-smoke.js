@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,6 +13,18 @@ const run = (command, arguments_, cwd) =>
     encoding: "utf8",
     stdio: "pipe",
   });
+
+const lintJson = (cwd, filename) => {
+  const result = spawnSync(
+    npmCommand,
+    ["exec", "--", "eslint", filename, "--format", "json"],
+    { cwd, encoding: "utf8" },
+  );
+  return {
+    messages: JSON.parse(result.stdout)[0]?.messages ?? [],
+    status: result.status,
+  };
+};
 
 const temporaryRoot = await mkdtemp(join(tmpdir(), "code-architecture-"));
 const consumerRoot = join(temporaryRoot, "consumer");
@@ -41,10 +53,15 @@ try {
     `import architecture from "eslint-plugin-code-architecture";
 import tseslint from "typescript-eslint";
 
+if (!architecture.configs.composition || !architecture.configs.lego) {
+  throw new Error("composition and lego presets must be public");
+}
+
 export default [
   ...architecture.configs.recommended,
   ...architecture.configs.effect,
   ...architecture.configs.composition,
+  ...architecture.configs.lego,
   {
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: { parser: tseslint.parser },
@@ -66,11 +83,37 @@ export const recover = Effect.catchAll((error) => Effect.fail(error));
 `,
   );
   await writeFile(
-    join(consumerRoot, "src/accordion.tsx"),
+    join(consumerRoot, "src/invalid-settings.tsx"),
+    `export function Settings({ items, FooterComponent }) {
+  return <section>
+    {items.filter(Boolean).map((item) => <Row item={item} />)}
+    <FooterComponent />
+  </section>;
+}
+`,
+  );
+  await writeFile(
+    join(consumerRoot, "src/valid-counter.tsx"),
     `type RootProps = { children: unknown };
 
-export const AccordionRoot = ({ children }: RootProps) => (
-  <section>{children}</section>
+const CounterContext = { Provider: ({ children }) => children };
+const CounterProvider = ({ children }: RootProps) => (
+  <CounterContext.Provider>{children}</CounterContext.Provider>
+);
+const CounterDisplay = () => <output />;
+const CounterIncrement = () => <button />;
+
+export const Counter = {
+  Provider: CounterProvider,
+  Display: CounterDisplay,
+  Increment: CounterIncrement,
+};
+
+export const Example = () => (
+  <Counter.Provider>
+    <Counter.Display />
+    <Counter.Increment />
+  </Counter.Provider>
 );
 `,
   );
@@ -89,7 +132,25 @@ export const AccordionRoot = ({ children }: RootProps) => (
     ],
     consumerRoot,
   );
-  run(npmCommand, ["exec", "--", "eslint", "src"], consumerRoot);
+  const invalid = lintJson(consumerRoot, "src/invalid-settings.tsx");
+  if (invalid.status !== 1) {
+    throw new Error(`invalid consumer exited with ${invalid.status}`);
+  }
+  const invalidRuleIds = new Set(
+    invalid.messages.map(({ ruleId }) => ruleId),
+  );
+  const expectedRule =
+    "code-architecture/prefer-composition-over-configuration";
+  if (!invalidRuleIds.has(expectedRule)) {
+    throw new Error(`invalid consumer did not report ${expectedRule}`);
+  }
+
+  const valid = lintJson(consumerRoot, "src/valid-counter.tsx");
+  if (valid.status !== 0 || valid.messages.length > 0) {
+    throw new Error(
+      `valid LEGO consumer failed: ${JSON.stringify(valid.messages)}`,
+    );
+  }
 } finally {
   await rm(temporaryRoot, { force: true, recursive: true });
 }

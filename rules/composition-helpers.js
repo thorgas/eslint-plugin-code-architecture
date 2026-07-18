@@ -4,6 +4,24 @@ const functionTypes = new Set([
   "FunctionExpression",
 ]);
 
+const wrapperTypes = new Set([
+  "ChainExpression",
+  "ParenthesizedExpression",
+  "TSAsExpression",
+  "TSInstantiationExpression",
+  "TSNonNullExpression",
+  "TSSatisfiesExpression",
+  "TSTypeAssertion",
+]);
+
+export const unwrapExpression = (node) => {
+  let current = node;
+  while (current && wrapperTypes.has(current.type)) {
+    current = current.expression;
+  }
+  return current;
+};
+
 const unwrapParameter = (parameter) =>
   parameter?.type === "AssignmentPattern" ? parameter.left : parameter;
 
@@ -83,6 +101,8 @@ export const readPropsParameter = (parameter) => {
 };
 
 export const referencedPropName = (node, props) => {
+  node = unwrapExpression(node);
+  if (!node) return undefined;
   if (node.type === "Identifier") return props.bindings.get(node.name);
   if (
     node.type !== "MemberExpression" ||
@@ -102,6 +122,20 @@ export const referencedPropName = (node, props) => {
     return node.property.value;
   }
   return undefined;
+};
+
+export const jsxNameParts = (node) => {
+  if (node.type === "JSXIdentifier") return [node.name];
+  if (node.type !== "JSXMemberExpression") return [];
+  const parts = [];
+  let current = node;
+  while (current.type === "JSXMemberExpression") {
+    parts.unshift(current.property.name);
+    current = current.object;
+  }
+  if (current.type !== "JSXIdentifier") return [];
+  parts.unshift(current.name);
+  return parts;
 };
 
 export const walkNodes = (root, sourceCode, visit, options = {}) => {

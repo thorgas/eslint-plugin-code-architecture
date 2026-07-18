@@ -23,12 +23,15 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "prefer-composition-over-configuration",
     "require-assertions",
     "require-composable-root-children",
+    "require-compound-component-api",
+    "require-consumer-owned-compound-usage",
   ]);
   expect(plugin.configs.recommended).toBeArray();
   expect(plugin.configs.tigerstyle).toBeArray();
   expect(plugin.configs.effect).toBeArray();
   expect(plugin.configs.react).toBeArray();
   expect(plugin.configs.composition).toBeArray();
+  expect(plugin.configs.lego).toBeArray();
   expect(Object.keys(plugin.configs)).toEqual([
     "recommended",
     "tigerstyle",
@@ -36,7 +39,16 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "effect",
     "react",
     "composition",
+    "lego",
   ]);
+});
+
+test("lego combines composition guardrails with strict API-shape rules", () => {
+  expect(plugin.configs.lego[0].rules).toEqual({
+    ...plugin.configs.composition[0].rules,
+    "code-architecture/require-compound-component-api": "error",
+    "code-architecture/require-consumer-owned-compound-usage": "error",
+  });
 });
 
 test("strict remains library agnostic", () => {

@@ -30,14 +30,10 @@ const objectNamespaces = (node) => {
   }
   const mappings = [];
   for (const property of node.init.properties) {
-    if (
-      property.type !== "Property" ||
-      property.computed ||
-      property.key.type !== "Identifier" ||
-      !["Provider", "Root"].includes(property.key.name)
-    ) {
-      continue;
-    }
+    if (property.type !== "Property" || property.computed) continue;
+    const key =
+      property.key.type === "Identifier" ? property.key.name : undefined;
+    if (!key) continue;
     const componentName =
       property.value.type === "Identifier"
         ? property.value.name
@@ -46,6 +42,7 @@ const objectNamespaces = (node) => {
     mappings.push({
       componentName,
       namespace: node.id.name,
+      part: key,
     });
   }
   return mappings;
@@ -83,12 +80,30 @@ const enterFunction = (state, node) => {
 };
 
 const recordNamespaceMappings = (state, node) => {
-  for (const mapping of objectNamespaces(node)) {
-    const namespaces =
-      state.namespaceMappings.get(mapping.componentName) ?? new Set();
-    namespaces.add(mapping.namespace);
-    state.namespaceMappings.set(mapping.componentName, namespaces);
+  if (
+    node.id.type === "Identifier" &&
+    node.init?.type === "Identifier"
+  ) {
+    state.aliases.set(node.id.name, node.init.name);
   }
+  for (const mapping of objectNamespaces(node)) {
+    if (["Provider", "Root"].includes(mapping.part)) {
+      const namespaces =
+        state.namespaceMappings.get(mapping.componentName) ?? new Set();
+      namespaces.add(mapping.namespace);
+      state.namespaceMappings.set(mapping.componentName, namespaces);
+    }
+    const parts = state.partBindings.get(mapping.namespace) ?? new Set();
+    parts.add(mapping.componentName);
+    state.partBindings.set(mapping.namespace, parts);
+  }
+};
+
+const resolveAlias = (name, aliases, seen = new Set()) => {
+  if (seen.has(name)) return name;
+  seen.add(name);
+  const next = aliases.get(name);
+  return next ? resolveAlias(next, aliases, seen) : name;
 };
 
 const reportOwnedParts = (state) => {
@@ -100,7 +115,13 @@ const reportOwnedParts = (state) => {
     if (derived && derived !== root.name) namespaces.add(derived);
     for (const { candidate, node } of root.candidates) {
       const owned = [...namespaces].some((namespace) =>
-        ownedByNamespace(candidate, namespace, root.name),
+        ownedByNamespace(candidate, namespace, root.name) ||
+        (
+          candidate.direct &&
+          state.partBindings.get(namespace)?.has(
+            resolveAlias(candidate.display, state.aliases),
+          )
+        ),
       );
       if (
         owned &&
@@ -159,9 +180,11 @@ const rule = {
     const options = context.options[0] ?? {};
     return makeVisitors({
       allowedParts: new Set(options.allowedParts ?? []),
+      aliases: new Map(),
       context,
       functionStack: [],
       namespaceMappings: new Map(),
+      partBindings: new Map(),
       pattern: new RegExp(
         options.componentNamePattern ?? "(?:Root|Provider)$",
         "u",
