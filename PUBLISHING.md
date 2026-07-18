@@ -14,12 +14,12 @@ Before releasing:
 6. Create and push the matching tag, then publish its GitHub release:
 
 ```sh
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
-gh release create v0.2.0 --verify-tag --generate-notes
+git tag -a v0.3.0 -m "v0.3.0"
+git push origin v0.3.0
+gh release create v0.3.0 --verify-tag --generate-notes
 ```
 
-Replace `0.2.0` with the version being released. Publishing the GitHub release triggers the npm workflow; do not run `npm publish` locally for routine releases.
+Replace `0.3.0` with the version being released. Publishing the GitHub release triggers the npm workflow; do not run `npm publish` locally for routine releases.
 
 Configure the package's npm trusted publisher with:
 
