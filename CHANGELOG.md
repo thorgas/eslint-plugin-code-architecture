@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Add opt-in `evoluDependencyInjection` and `evoluConventions` presets derived from Evolu's dependency-injection and TypeScript convention guides.
-- Add eleven syntax-only rules for dependency wrappers and arguments, lean dependency requirements, composition-root instances, named imports, unique exports, top-down declarations, arrow functions, readonly types, and interface-first object shapes.
+- Add twelve syntax-only rules for dependency wrappers and arguments, lean dependency requirements, implicit external access, composition-root instances, named imports, unique exports, top-down declarations, arrow functions, readonly types, and interface-first object shapes.
 - Exercise both Evolu presets through unit tests and the clean packed-package consumer smoke test.
 
 ## 0.3.0

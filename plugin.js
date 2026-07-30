@@ -11,6 +11,7 @@ import namedImports from "./rules/named-imports.js";
 import noBarrelFiles from "./rules/no-barrel-files.js";
 import noBarrelImports from "./rules/no-barrel-imports.js";
 import noExportedDependencyInstances from "./rules/no-exported-dependency-instances.js";
+import noImplicitExternalDependencies from "./rules/no-implicit-external-dependencies.js";
 import noNamespaceExports from "./rules/no-namespace-exports.js";
 import noOverDepending from "./rules/no-over-depending.js";
 import noRootOwnedCompoundParts from "./rules/no-root-owned-compound-parts.js";
@@ -51,6 +52,7 @@ const plugin = {
     "no-barrel-files": noBarrelFiles,
     "no-barrel-imports": noBarrelImports,
     "no-exported-dependency-instances": noExportedDependencyInstances,
+    "no-implicit-external-dependencies": noImplicitExternalDependencies,
     "no-namespace-exports": noNamespaceExports,
     "no-over-depending": noOverDepending,
     "no-root-owned-compound-parts": noRootOwnedCompoundParts,
@@ -123,6 +125,7 @@ const evoluDependencyInjectionRules = {
   [`${namespace}/dependency-parameter-convention`]: "error",
   [`${namespace}/dependency-wrapper-shape`]: "error",
   [`${namespace}/no-exported-dependency-instances`]: "error",
+  [`${namespace}/no-implicit-external-dependencies`]: "error",
   [`${namespace}/no-over-depending`]: "error",
   [`${namespace}/sort-dependency-types`]: "error",
 };
