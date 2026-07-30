@@ -6,7 +6,7 @@ These rules adapt published engineering guidance; they do not claim those ideas 
 | --- | --- |
 | ESLint, [Create Plugins](https://eslint.org/docs/latest/extend/plugins) | Portable plugin API, flat-config presets, and rule metadata |
 | Sindre Sorhus and contributors, [eslint-plugin-unicorn](https://github.com/sindresorhus/eslint-plugin-unicorn) | Repository structure, per-rule documentation, testing, and release ergonomics |
-| TigerBeetle, [TigerStyle](https://tigerstyle.dev/) and [full style guide](https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md) | `require-assertions`, `max-function-lines`, `max-function-parameters`, `imports-first` |
+| TigerBeetle, [TigerStyle](https://tigerstyle.dev/) and [full style guide](https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md) | `require-assertions`, `require-contract-assertions`, `max-function-lines`, `max-function-parameters`, `imports-first` |
 | Marvin Hagemeister, [The barrel file debacle](https://marvinh.dev/blog/speeding-up-javascript-ecosystem-part-7/) | `no-barrel-files`, `no-barrel-imports` |
 | TkDodo, [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase) | `enforce-module-boundaries` |
 | Sandro Maglione, [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves) | `declarative-components` |

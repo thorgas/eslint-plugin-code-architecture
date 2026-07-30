@@ -24,6 +24,7 @@ import preferReadonlyTypes from "./rules/prefer-readonly-types.js";
 import requireAssertions from "./rules/require-assertions.js";
 import requireComposableRootChildren from "./rules/require-composable-root-children.js";
 import requireCompoundComponentApi from "./rules/require-compound-component-api.js";
+import requireContractAssertions from "./rules/require-contract-assertions.js";
 import requireConsumerOwnedCompoundUsage from "./rules/require-consumer-owned-compound-usage.js";
 import sortDependencyTypes from "./rules/sort-dependency-types.js";
 import topDownDeclarations from "./rules/top-down-declarations.js";
@@ -66,6 +67,7 @@ const plugin = {
     "require-assertions": requireAssertions,
     "require-composable-root-children": requireComposableRootChildren,
     "require-compound-component-api": requireCompoundComponentApi,
+    "require-contract-assertions": requireContractAssertions,
     "require-consumer-owned-compound-usage":
       requireConsumerOwnedCompoundUsage,
     "sort-dependency-types": sortDependencyTypes,
@@ -95,6 +97,20 @@ const tigerstyleRules = {
   [`${namespace}/max-function-lines`]: ["error", { max: 70 }],
   [`${namespace}/max-function-parameters`]: ["error", { max: 5 }],
   [`${namespace}/require-assertions`]: ["error", { minimum: 2 }],
+};
+
+const agentReadinessRules = {
+  ...recommendedRules,
+  ...tigerstyleRules,
+  [`${namespace}/require-assertions`]: [
+    "error",
+    {
+      checkExpressionBodies: true,
+      minimum: 2,
+      minimumStatements: 0,
+    },
+  ],
+  [`${namespace}/require-contract-assertions`]: "error",
 };
 
 const effectRules = {
@@ -146,6 +162,7 @@ Object.assign(plugin.configs, {
     ...recommendedRules,
     ...tigerstyleRules,
   }),
+  agentReadiness: flatConfig("agent-readiness", agentReadinessRules),
   effect: flatConfig("effect", effectRules),
   react: flatConfig("react", reactRules),
   composition: flatConfig("composition", compositionRules),

@@ -5,6 +5,8 @@
 - Add opt-in `evoluDependencyInjection` and `evoluConventions` presets derived from Evolu's dependency-injection and TypeScript convention guides.
 - Add twelve syntax-only rules for dependency wrappers and arguments, lean dependency requirements, implicit external access, composition-root instances, named imports, unique exports, top-down declarations, arrow functions, readonly types, and interface-first object shapes.
 - Exercise both Evolu presets through unit tests and the clean packed-package consumer smoke test.
+- Add the opt-in `agentReadiness` preset, combining `strict` with assertion checks for empty, trivial, and expression-bodied functions.
+- Add `require-contract-assertions` to require semantic runtime checks for every parameter binding and nontrivial return path without counting obvious checks already covered by explicit TypeScript annotations.
 
 ## 0.3.0
 
