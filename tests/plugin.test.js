@@ -10,28 +10,39 @@ test("plugin exposes every rule through portable flat-config presets", () => {
   expect(Object.keys(plugin.rules).sort()).toEqual([
     "centralize-domain-literals",
     "declarative-components",
+    "dependency-parameter-convention",
+    "dependency-wrapper-shape",
     "effect-error-handling",
     "enforce-module-boundaries",
     "imports-first",
     "max-function-lines",
     "max-function-parameters",
+    "named-imports",
     "no-barrel-files",
     "no-barrel-imports",
     "no-design-identity-overrides",
+    "no-exported-dependency-instances",
+    "no-namespace-exports",
+    "no-over-depending",
     "no-raw-design-properties",
     "no-raw-design-values",
     "no-root-owned-compound-parts",
     "no-unasserted-return",
     "no-unsafe-type-assertions",
     "no-unvalidated-json-parse",
+    "prefer-arrow-functions",
     "prefer-composition-over-configuration",
     "prefer-design-system-components",
+    "prefer-interface-over-type",
+    "prefer-readonly-types",
     "require-assertions",
     "require-composable-root-children",
     "require-compound-component-api",
     "require-consumer-owned-compound-usage",
     "require-dismissible-modal-backdrop",
     "require-interactive-component-contract",
+    "sort-dependency-types",
+    "top-down-declarations",
   ]);
   expect(plugin.configs.recommended).toBeArray();
   expect(plugin.configs.tigerstyle).toBeArray();
@@ -39,6 +50,8 @@ test("plugin exposes every rule through portable flat-config presets", () => {
   expect(plugin.configs.react).toBeArray();
   expect(plugin.configs.composition).toBeArray();
   expect(plugin.configs.lego).toBeArray();
+  expect(plugin.configs.evoluDependencyInjection).toBeArray();
+  expect(plugin.configs.evoluConventions).toBeArray();
   expect(Object.keys(plugin.configs)).toEqual([
     "recommended",
     "tigerstyle",
@@ -47,6 +60,8 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "react",
     "composition",
     "lego",
+    "evoluDependencyInjection",
+    "evoluConventions",
   ]);
 });
 
@@ -126,4 +141,31 @@ test("design-system adoption rules remain opt-in", () => {
       ).toBeUndefined();
     }
   }
+});
+
+test("Evolu presets expose only rules derived from the linked Evolu guides", () => {
+  expect(plugin.configs.evoluDependencyInjection[0].rules).toEqual({
+    "code-architecture/dependency-parameter-convention": "error",
+    "code-architecture/dependency-wrapper-shape": "error",
+    "code-architecture/no-exported-dependency-instances": "error",
+    "code-architecture/no-over-depending": "error",
+    "code-architecture/sort-dependency-types": "error",
+  });
+  expect(plugin.configs.evoluConventions[0].rules).toEqual({
+    "code-architecture/named-imports": "error",
+    "code-architecture/no-namespace-exports": "error",
+    "code-architecture/prefer-arrow-functions": "error",
+    "code-architecture/prefer-interface-over-type": "error",
+    "code-architecture/prefer-readonly-types": "error",
+    "code-architecture/top-down-declarations": "error",
+  });
+});
+
+test("strict does not opt projects into Evolu-specific conventions", () => {
+  const strictRules = plugin.configs.strict[0].rules;
+
+  expect(
+    strictRules["code-architecture/dependency-wrapper-shape"],
+  ).toBeUndefined();
+  expect(strictRules["code-architecture/named-imports"]).toBeUndefined();
 });

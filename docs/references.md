@@ -17,6 +17,8 @@ These rules adapt published engineering guidance; they do not claim those ideas 
 | [Effect by Example](https://effectbyexample.com/) | `effect-error-handling`, `no-unvalidated-json-parse` |
 | Michael Arnaldi, [Effect guide](https://github.com/mikearnaldi/accountability/blob/main/specs/guides/effect-guide.md) | Effect error, schema, and dependency-injection policies |
 | Michael Arnaldi, [error-tracker specification](https://github.com/mikearnaldi/accountability/blob/main/specs/completed/error-tracker.md) | `effect-error-handling` |
+| Evolu, [Dependency Injection](https://www.evolu.dev/docs/dependency-injection) | `dependency-wrapper-shape`, `dependency-parameter-convention`, `sort-dependency-types`, `no-over-depending`, `no-exported-dependency-instances` |
+| Evolu, [Conventions](https://www.evolu.dev/docs/conventions) | `named-imports`, `no-namespace-exports`, `top-down-declarations`, `prefer-arrow-functions`, `prefer-readonly-types`, `prefer-interface-over-type` |
 
 The originating project also references SurrealDB's [schema creation best practices](https://surrealdb.com/docs/surrealdb/reference-guide/schema-creation-best-practices) and [sample industry schemas](https://surrealdb.com/docs/surrealdb/reference-guide/sample-industry-schemas). Those guides require domain-aware schema review and are not represented as generic AST rules; linking them here preserves attribution without pretending a syntax check can enforce database design quality.
 

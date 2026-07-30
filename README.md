@@ -6,10 +6,11 @@ Portable ESLint rules that turn architectural decisions into fast, local feedbac
 
 The plugin makes important design decisions executable:
 
-- Eleven rules are framework-agnostic TypeScript checks that work equally well in backend services, libraries, CLIs, and frontend applications.
+- Framework-agnostic TypeScript rules work equally well in backend services, libraries, CLIs, and frontend applications.
 - Unsafe casts and raw `JSON.parse` calls fail where they are written.
 - Oversized functions, positional parameter growth, and missing invariants get immediate feedback.
 - Cross-feature imports must follow declared dependency direction and public entry points.
+- Explicit dependency injection and top-down module conventions make ownership searchable.
 - Effect failures remain typed and visible instead of being silently erased.
 - Optional React and React Native rules keep components declarative, accessible, tokenized, and consumer-composable.
 
@@ -17,7 +18,7 @@ The plugin makes important design decisions executable:
 
 Every rule has a passing example in [Rule reference and examples](#rule-reference-and-examples), with detailed invalid cases and options on its linked rule page.
 
-The design draws from [TigerStyle](https://tigerstyle.dev/), [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase), [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves), and [Composition is all you need](https://www.youtube.com/watch?v=4KvbVq3Eg5w). See [References and attribution](docs/references.md) for the policy sources.
+The design draws from [TigerStyle](https://tigerstyle.dev/), [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase), [Evolu's TypeScript guides](https://www.evolu.dev/docs/dependency-injection), [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves), and [Composition is all you need](https://www.youtube.com/watch?v=4KvbVq3Eg5w). See [References and attribution](docs/references.md) for the policy sources.
 
 It is ESM-only, supports ESLint flat config, and does not require type-aware linting.
 
@@ -37,6 +38,10 @@ import tseslint from "typescript-eslint";
 const integrations = [
   // Add only when Effect is installed and used:
   // ...architecture.configs.effect,
+  // Add when adopting Evolu's dependency-injection convention:
+  // ...architecture.configs.evoluDependencyInjection,
+  // Add when adopting Evolu's broader TypeScript conventions:
+  // ...architecture.configs.evoluConventions,
   // Add for compound components whose consumers should own layout:
   // ...architecture.configs.composition,
   // Add only to files that implement or consume strict LEGO object APIs:
@@ -58,7 +63,7 @@ export default tseslint.config(
 Presets are flat-config arrays and fall into two groups:
 
 - Library-agnostic: `recommended`, `tigerstyle`, and `strict`. The `strict` preset combines the other two.
-- Optional library and architecture integrations: `effect`, `react`, `composition`, and `lego`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
+- Optional library and architecture integrations: `effect`, `react`, `composition`, `lego`, `evoluDependencyInjection`, and `evoluConventions`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
 
 ## Production patterns
 
@@ -330,6 +335,8 @@ The rule is deliberately excluded from every preset. It does not assume React, R
 
 Design-system adoption rules are also opt-in. Activate a rule only after the matching primitive, token family, interaction contract, dismissal pattern, or component variants exist and their intended consumers have migrated. Enabling them earlier would turn architectural feedback into suppressions rather than adoption.
 
+The Evolu-derived presets are also opt-in and syntax-only. `evoluConventions` deliberately conflicts with namespace-object APIs, including files governed by `lego`; scope those presets to different files.
+
 ## Rule reference and examples
 
 Every rule has a compact passing example here, ordered from TypeScript to libraries, JSX composition, React, and React Native. Follow its link for failing examples, options, scope, and static-analysis limits. “Configure” means the rule needs project-specific vocabulary or component names; optional presets are never included by `strict`.
@@ -341,16 +348,27 @@ These rules have no UI or framework dependency. Use them in backend services, li
 | Rule | Immediate benefit | Passing shape | Preset |
 | --- | --- | --- | --- |
 | [`centralize-domain-literals`](docs/rules/centralize-domain-literals.md) | Fixed vocabulary has one owner | `if (job.status === JOB_STATUS.COMPLETED) {}` | Configure |
+| [`dependency-parameter-convention`](docs/rules/dependency-parameter-convention.md) | Dependencies enter through one explicit argument | `const load = (deps: DbDep) => (id: Id) => deps.db.load(id);` | `evoluDependencyInjection` |
+| [`dependency-wrapper-shape`](docs/rules/dependency-wrapper-shape.md) | Dependencies have distinct, collision-free contracts | `interface TimeDep { readonly time: Time; }` | `evoluDependencyInjection` |
 | [`enforce-module-boundaries`](docs/rules/enforce-module-boundaries.md) | Features use declared public edges | `import { findProduct } from "../catalog/product.api.js";` | Configure |
 | [`imports-first`](docs/rules/imports-first.md) | Dependencies stay visible | `import { parse } from "./parse.js";` before executable code | `recommended` |
 | [`max-function-lines`](docs/rules/max-function-lines.md) | Logic stays reviewable | `function total(items) { return items.reduce(sum, 0); }` | `recommended`, `tigerstyle` |
 | [`max-function-parameters`](docs/rules/max-function-parameters.md) | APIs resist positional growth | `function search({ query, limit, cursor }) {}` | `recommended`, `tigerstyle` |
+| [`named-imports`](docs/rules/named-imports.md) | Imports name exact dependencies | `import { parseUser } from "./user.js";` | `evoluConventions` |
 | [`no-barrel-files`](docs/rules/no-barrel-files.md) | Dependency edges stay direct | Define `export function charge() {}` in `charge.js` | `recommended` |
 | [`no-barrel-imports`](docs/rules/no-barrel-imports.md) | Imports reveal their owner | `import { charge } from "./charge.js";` | `recommended`, `effect` |
+| [`no-exported-dependency-instances`](docs/rules/no-exported-dependency-instances.md) | Composition roots own service instances | `const logger = createLogger();` | `evoluDependencyInjection` |
+| [`no-namespace-exports`](docs/rules/no-namespace-exports.md) | Exports remain unique and searchable | `export const parseUser = () => {};` | `evoluConventions` |
+| [`no-over-depending`](docs/rules/no-over-depending.md) | Functions request only what they use | `const log = (deps: LoggerDep) => deps.logger.log("ready");` | `evoluDependencyInjection` |
 | [`no-unasserted-return`](docs/rules/no-unasserted-return.md) | Returned call results carry evidence | `const user = await loadUser(); assert(user.id); return user;` | Configure |
 | [`no-unsafe-type-assertions`](docs/rules/no-unsafe-type-assertions.md) | Unknown data cannot bypass checks | `Schema.decodeUnknownSync(User)(input)` | `recommended` |
 | [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Parsed JSON is validated immediately | `Schema.decodeUnknownSync(Config)(JSON.parse(text))` | `recommended` |
+| [`prefer-arrow-functions`](docs/rules/prefer-arrow-functions.md) | Function syntax stays consistent | `export const createUser = (data) => ({ data });` | `evoluConventions` |
+| [`prefer-interface-over-type`](docs/rules/prefer-interface-over-type.md) | Object contracts remain extensible | `interface User { readonly id: string; }` | `evoluConventions` |
+| [`prefer-readonly-types`](docs/rules/prefer-readonly-types.md) | Contracts make mutation explicit | `interface User { readonly roles: ReadonlyArray<Role>; }` | `evoluConventions` |
 | [`require-assertions`](docs/rules/require-assertions.md) | Function invariants become executable | `assert(result.length <= input.length); return result;` | `tigerstyle` |
+| [`sort-dependency-types`](docs/rules/sort-dependency-types.md) | Dependency contracts stay predictable | `type AppDeps = LoggerDep & TimeDep;` | `evoluDependencyInjection` |
+| [`top-down-declarations`](docs/rules/top-down-declarations.md) | Public contracts appear before details | `export interface User { readonly id: string; }` before private helpers | `evoluConventions` |
 
 ### 2. Frontend and backend libraries
 

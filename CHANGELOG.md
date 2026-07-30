@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add opt-in `evoluDependencyInjection` and `evoluConventions` presets derived from Evolu's dependency-injection and TypeScript convention guides.
+- Add eleven syntax-only rules for dependency wrappers and arguments, lean dependency requirements, composition-root instances, named imports, unique exports, top-down declarations, arrow functions, readonly types, and interface-first object shapes.
+- Exercise both Evolu presets through unit tests and the clean packed-package consumer smoke test.
+
 ## 0.5.0
 
 - Expand `require-assertions` with narrowly configurable exemptions for short direct callbacks, JSX components, React hooks, trivial constructors, and return-only factories; credit assertions inside thin wrapper closures; and optionally count guarded throws.

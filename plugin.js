@@ -1,27 +1,38 @@
 import centralizeDomainLiterals from "./rules/centralize-domain-literals.js";
+import dependencyParameterConvention from "./rules/dependency-parameter-convention.js";
+import dependencyWrapperShape from "./rules/dependency-wrapper-shape.js";
 import declarativeComponents from "./rules/declarative-components.js";
 import effectErrorHandling from "./rules/effect-error-handling.js";
 import enforceModuleBoundaries from "./rules/enforce-module-boundaries.js";
 import importsFirst from "./rules/imports-first.js";
 import maxFunctionLines from "./rules/max-function-lines.js";
 import maxFunctionParameters from "./rules/max-function-parameters.js";
+import namedImports from "./rules/named-imports.js";
 import noBarrelFiles from "./rules/no-barrel-files.js";
 import noBarrelImports from "./rules/no-barrel-imports.js";
 import noDesignIdentityOverrides from "./rules/no-design-identity-overrides.js";
+import noExportedDependencyInstances from "./rules/no-exported-dependency-instances.js";
+import noNamespaceExports from "./rules/no-namespace-exports.js";
+import noOverDepending from "./rules/no-over-depending.js";
 import noRawDesignProperties from "./rules/no-raw-design-properties.js";
 import noRawDesignValues from "./rules/no-raw-design-values.js";
 import noRootOwnedCompoundParts from "./rules/no-root-owned-compound-parts.js";
 import noUnassertedReturn from "./rules/no-unasserted-return.js";
 import noUnsafeTypeAssertions from "./rules/no-unsafe-type-assertions.js";
 import noUnvalidatedJsonParse from "./rules/no-unvalidated-json-parse.js";
+import preferArrowFunctions from "./rules/prefer-arrow-functions.js";
 import preferCompositionOverConfiguration from "./rules/prefer-composition-over-configuration.js";
 import preferDesignSystemComponents from "./rules/prefer-design-system-components.js";
+import preferInterfaceOverType from "./rules/prefer-interface-over-type.js";
+import preferReadonlyTypes from "./rules/prefer-readonly-types.js";
 import requireAssertions from "./rules/require-assertions.js";
 import requireComposableRootChildren from "./rules/require-composable-root-children.js";
 import requireCompoundComponentApi from "./rules/require-compound-component-api.js";
 import requireConsumerOwnedCompoundUsage from "./rules/require-consumer-owned-compound-usage.js";
 import requireDismissibleModalBackdrop from "./rules/require-dismissible-modal-backdrop.js";
 import requireInteractiveComponentContract from "./rules/require-interactive-component-contract.js";
+import sortDependencyTypes from "./rules/sort-dependency-types.js";
+import topDownDeclarations from "./rules/top-down-declarations.js";
 import packageMetadata from "./package.json" with { type: "json" };
 
 const namespace = "code-architecture";
@@ -35,24 +46,33 @@ const plugin = {
   configs: {},
   rules: {
     "centralize-domain-literals": centralizeDomainLiterals,
+    "dependency-parameter-convention": dependencyParameterConvention,
+    "dependency-wrapper-shape": dependencyWrapperShape,
     "declarative-components": declarativeComponents,
     "effect-error-handling": effectErrorHandling,
     "enforce-module-boundaries": enforceModuleBoundaries,
     "imports-first": importsFirst,
     "max-function-lines": maxFunctionLines,
     "max-function-parameters": maxFunctionParameters,
+    "named-imports": namedImports,
     "no-barrel-files": noBarrelFiles,
     "no-barrel-imports": noBarrelImports,
     "no-design-identity-overrides": noDesignIdentityOverrides,
+    "no-exported-dependency-instances": noExportedDependencyInstances,
+    "no-namespace-exports": noNamespaceExports,
+    "no-over-depending": noOverDepending,
     "no-raw-design-properties": noRawDesignProperties,
     "no-raw-design-values": noRawDesignValues,
     "no-root-owned-compound-parts": noRootOwnedCompoundParts,
     "no-unasserted-return": noUnassertedReturn,
     "no-unsafe-type-assertions": noUnsafeTypeAssertions,
     "no-unvalidated-json-parse": noUnvalidatedJsonParse,
+    "prefer-arrow-functions": preferArrowFunctions,
     "prefer-composition-over-configuration":
       preferCompositionOverConfiguration,
     "prefer-design-system-components": preferDesignSystemComponents,
+    "prefer-interface-over-type": preferInterfaceOverType,
+    "prefer-readonly-types": preferReadonlyTypes,
     "require-assertions": requireAssertions,
     "require-composable-root-children": requireComposableRootChildren,
     "require-compound-component-api": requireCompoundComponentApi,
@@ -61,6 +81,8 @@ const plugin = {
     "require-dismissible-modal-backdrop": requireDismissibleModalBackdrop,
     "require-interactive-component-contract":
       requireInteractiveComponentContract,
+    "sort-dependency-types": sortDependencyTypes,
+    "top-down-declarations": topDownDeclarations,
   },
 };
 
@@ -131,6 +153,23 @@ const legoRules = {
   [`${namespace}/require-consumer-owned-compound-usage`]: "error",
 };
 
+const evoluDependencyInjectionRules = {
+  [`${namespace}/dependency-parameter-convention`]: "error",
+  [`${namespace}/dependency-wrapper-shape`]: "error",
+  [`${namespace}/no-exported-dependency-instances`]: "error",
+  [`${namespace}/no-over-depending`]: "error",
+  [`${namespace}/sort-dependency-types`]: "error",
+};
+
+const evoluConventionsRules = {
+  [`${namespace}/named-imports`]: "error",
+  [`${namespace}/no-namespace-exports`]: "error",
+  [`${namespace}/prefer-arrow-functions`]: "error",
+  [`${namespace}/prefer-interface-over-type`]: "error",
+  [`${namespace}/prefer-readonly-types`]: "error",
+  [`${namespace}/top-down-declarations`]: "error",
+};
+
 Object.assign(plugin.configs, {
   recommended: flatConfig("recommended", recommendedRules),
   tigerstyle: flatConfig("tigerstyle", tigerstyleRules),
@@ -142,6 +181,14 @@ Object.assign(plugin.configs, {
   react: flatConfig("react", reactRules),
   composition: flatConfig("composition", compositionRules),
   lego: flatConfig("lego", legoRules),
+  evoluDependencyInjection: flatConfig(
+    "evolu-dependency-injection",
+    evoluDependencyInjectionRules,
+  ),
+  evoluConventions: flatConfig(
+    "evolu-conventions",
+    evoluConventionsRules,
+  ),
 });
 
 export default plugin;
