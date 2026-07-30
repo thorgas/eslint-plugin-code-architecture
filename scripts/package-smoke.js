@@ -53,8 +53,13 @@ try {
     `import architecture from "eslint-plugin-code-architecture";
 import tseslint from "typescript-eslint";
 
-if (!architecture.configs.composition || !architecture.configs.lego) {
-  throw new Error("composition and lego presets must be public");
+if (
+  !architecture.configs.composition ||
+  !architecture.configs.lego ||
+  !architecture.configs.evoluDependencyInjection ||
+  !architecture.configs.evoluConventions
+) {
+  throw new Error("optional architecture presets must be public");
 }
 
 export default [
@@ -63,10 +68,49 @@ export default [
   ...architecture.configs.composition,
   ...architecture.configs.lego,
   {
+    ...architecture.configs.evoluDependencyInjection[0],
+    files: ["src/evolu-*.ts"],
+    rules: {
+      ...architecture.configs.evoluDependencyInjection[0].rules,
+      ...architecture.configs.evoluConventions[0].rules,
+    },
+  },
+  {
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: { parser: tseslint.parser },
   },
 ];
+`,
+  );
+  await writeFile(
+    join(consumerRoot, "src/evolu-valid.ts"),
+    `interface Logger {
+  readonly log: (message: string) => void;
+}
+interface LoggerDep {
+  readonly logger: Logger;
+}
+interface Time {
+  readonly now: () => number;
+}
+interface TimeDep {
+  readonly time: Time;
+}
+
+const run = (deps: LoggerDep & TimeDep) => {
+  deps.logger.log(String(deps.time.now()));
+};
+
+run;
+`,
+  );
+  await writeFile(
+    join(consumerRoot, "src/evolu-invalid.ts"),
+    `import Logger from "./logger.js";
+
+type LoggerDep = { logger: Logger };
+
+export const logger = createLogger();
 `,
   );
   await writeFile(
@@ -149,6 +193,29 @@ export const Example = () => (
   if (valid.status !== 0 || valid.messages.length > 0) {
     throw new Error(
       `valid LEGO consumer failed: ${JSON.stringify(valid.messages)}`,
+    );
+  }
+
+  const invalidEvolu = lintJson(consumerRoot, "src/evolu-invalid.ts");
+  const invalidEvoluRuleIds = new Set(
+    invalidEvolu.messages.map(({ ruleId }) => ruleId),
+  );
+  for (const expectedEvoluRule of [
+    "code-architecture/dependency-wrapper-shape",
+    "code-architecture/named-imports",
+    "code-architecture/no-exported-dependency-instances",
+  ]) {
+    if (!invalidEvoluRuleIds.has(expectedEvoluRule)) {
+      throw new Error(
+        `invalid Evolu consumer did not report ${expectedEvoluRule}`,
+      );
+    }
+  }
+
+  const validEvolu = lintJson(consumerRoot, "src/evolu-valid.ts");
+  if (validEvolu.status !== 0 || validEvolu.messages.length > 0) {
+    throw new Error(
+      `valid Evolu consumer failed: ${JSON.stringify(validEvolu.messages)}`,
     );
   }
 } finally {
