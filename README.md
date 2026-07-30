@@ -62,7 +62,7 @@ export default tseslint.config(
 
 Presets are flat-config arrays and fall into two groups:
 
-- Library-agnostic: `recommended`, `tigerstyle`, and `strict`. The `strict` preset combines the other two.
+- Library-agnostic: `recommended`, `tigerstyle`, `strict`, and `agentReadiness`. The `strict` preset combines `recommended` and `tigerstyle`; `agentReadiness` strengthens `strict` with per-function runtime contracts.
 - Optional library and architecture integrations: `effect`, `react`, `composition`, `lego`, `evoluDependencyInjection`, and `evoluConventions`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
 
 ## Production patterns
@@ -299,6 +299,23 @@ ESLint visits files independently, so a reliable “literal appears in two files
 ]
 ```
 
+### TypeScript: agent-ready runtime contracts
+
+`agentReadiness` is the most mechanically strict library-agnostic preset. It includes every `strict` rule and configures assertion enforcement for code produced or maintained by coding agents:
+
+- Every function, including concise arrows and otherwise trivial functions, contains at least two recognized runtime assertions.
+- Every runtime parameter binding is referenced by at least one semantic assertion.
+- Every nontrivial returned value is covered by a semantic assertion that dominates that return path.
+- Obvious checks already expressed by an explicit TypeScript annotation do not satisfy the parameter or return contract.
+
+```js
+export default [
+  ...architecture.configs.agentReadiness,
+];
+```
+
+This preset is intentionally demanding. A computed return should normally be assigned to a local binding, checked with a postcondition, and then returned. Statically evident returns such as literals, JSX, and function values do not need a separate return assertion, but the function still needs the two assertions required by `require-assertions`.
+
 ### React: design tokens, including React Native
 
 `no-raw-design-values` prohibits explicitly configured string or numeric values only when they appear in configured object properties. Consumers provide the semantic meaning: which values and properties belong together, their approved token replacements, token files, and narrow exceptions.
@@ -370,6 +387,7 @@ The Evolu-derived presets are opt-in. `no-implicit-external-dependencies` maps `
 | [`prefer-interface-over-type`](docs/rules/prefer-interface-over-type.md) | Object contracts remain extensible | `interface User { readonly id: string; }` | `evoluConventions` |
 | [`prefer-readonly-types`](docs/rules/prefer-readonly-types.md) | Contracts make mutation explicit | `interface User { readonly roles: ReadonlyArray<Role>; }` | `evoluConventions` |
 | [`require-assertions`](docs/rules/require-assertions.md) | Function invariants become executable | `assert(result.length <= input.length); return result;` | `tigerstyle` |
+| [`require-contract-assertions`](docs/rules/require-contract-assertions.md) | Every input and computed return has runtime evidence | `assert(userId.length > 0); const user = load(userId); assert(user.id === userId); return user;` | `agentReadiness` |
 | [`sort-dependency-types`](docs/rules/sort-dependency-types.md) | Dependency contracts stay predictable | `type AppDeps = LoggerDep & TimeDep;` | `evoluDependencyInjection` |
 | [`top-down-declarations`](docs/rules/top-down-declarations.md) | Public contracts appear before details | `export interface User { readonly id: string; }` before private helpers | `evoluConventions` |
 

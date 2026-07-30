@@ -40,6 +40,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "require-composable-root-children",
     "require-compound-component-api",
     "require-consumer-owned-compound-usage",
+    "require-contract-assertions",
     "require-dismissible-modal-backdrop",
     "require-interactive-component-contract",
     "sort-dependency-types",
@@ -47,6 +48,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
   ]);
   expect(plugin.configs.recommended).toBeArray();
   expect(plugin.configs.tigerstyle).toBeArray();
+  expect(plugin.configs.agentReadiness).toBeArray();
   expect(plugin.configs.effect).toBeArray();
   expect(plugin.configs.react).toBeArray();
   expect(plugin.configs.composition).toBeArray();
@@ -57,6 +59,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "recommended",
     "tigerstyle",
     "strict",
+    "agentReadiness",
     "effect",
     "react",
     "composition",
@@ -116,6 +119,21 @@ test("line-limit presets exclude JSX UI functions", () => {
       "code-architecture/max-function-lines"
     ],
   ).toEqual(["error", { ignoreJSX: true, max: 70 }]);
+});
+
+test("agent readiness strengthens strict with per-function contracts", () => {
+  expect(plugin.configs.agentReadiness[0].rules).toEqual({
+    ...plugin.configs.strict[0].rules,
+    "code-architecture/require-assertions": [
+      "error",
+      {
+        checkExpressionBodies: true,
+        minimum: 2,
+        minimumStatements: 0,
+      },
+    ],
+    "code-architecture/require-contract-assertions": "error",
+  });
 });
 
 test("composition preset exposes only the consumer-owned layout rules", () => {

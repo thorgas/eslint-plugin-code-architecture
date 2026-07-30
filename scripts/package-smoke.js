@@ -54,6 +54,7 @@ try {
 import tseslint from "typescript-eslint";
 
 if (
+  !architecture.configs.agentReadiness ||
   !architecture.configs.composition ||
   !architecture.configs.lego ||
   !architecture.configs.evoluDependencyInjection ||
@@ -78,6 +79,10 @@ export default [
   ...architecture.configs.effect,
   ...architecture.configs.composition,
   ...architecture.configs.lego,
+  ...architecture.configs.agentReadiness.map((config) => ({
+    ...config,
+    files: ["src/agent-*.ts"],
+  })),
   {
     ...architecture.configs.evoluDependencyInjection[0],
     files: ["src/evolu-*.ts"],
@@ -233,6 +238,23 @@ export const Example = () => (
 );
 `,
   );
+  await writeFile(
+    join(consumerRoot, "src/agent-valid.ts"),
+    `declare const assert: (condition: boolean) => void;
+
+export const normalize = (value: string): string => {
+  assert(value.length > 0);
+  const result = value.trim();
+  assert(result.length > 0);
+  return result;
+};
+`,
+  );
+  await writeFile(
+    join(consumerRoot, "src/agent-invalid.ts"),
+    `export const normalize = (value: string): string => value.trim();
+`,
+  );
 
   run(
     npmCommand,
@@ -322,10 +344,37 @@ export const Example = () => (
     }
   }
 
+  const invalidAgent = lintJson(consumerRoot, "src/agent-invalid.ts");
+  if (invalidAgent.status !== 1) {
+    throw new Error(
+      `invalid agent readiness consumer exited with ${invalidAgent.status}`,
+    );
+  }
+  const invalidAgentRuleIds = new Set(
+    invalidAgent.messages.map(({ ruleId }) => ruleId),
+  );
+  for (const expectedAgentRule of [
+    "code-architecture/require-assertions",
+    "code-architecture/require-contract-assertions",
+  ]) {
+    if (!invalidAgentRuleIds.has(expectedAgentRule)) {
+      throw new Error(
+        `invalid agent readiness consumer did not report ${expectedAgentRule}`,
+      );
+    }
+  }
+
   const validEvolu = lintJson(consumerRoot, "src/evolu-valid.ts");
   if (validEvolu.status !== 0 || validEvolu.messages.length > 0) {
     throw new Error(
       `valid Evolu consumer failed: ${JSON.stringify(validEvolu.messages)}`,
+    );
+  }
+
+  const validAgent = lintJson(consumerRoot, "src/agent-valid.ts");
+  if (validAgent.status !== 0 || validAgent.messages.length > 0) {
+    throw new Error(
+      `valid agent readiness consumer failed: ${JSON.stringify(validAgent.messages)}`,
     );
   }
 } finally {

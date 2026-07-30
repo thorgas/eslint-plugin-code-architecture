@@ -29,6 +29,7 @@ import preferReadonlyTypes from "./rules/prefer-readonly-types.js";
 import requireAssertions from "./rules/require-assertions.js";
 import requireComposableRootChildren from "./rules/require-composable-root-children.js";
 import requireCompoundComponentApi from "./rules/require-compound-component-api.js";
+import requireContractAssertions from "./rules/require-contract-assertions.js";
 import requireConsumerOwnedCompoundUsage from "./rules/require-consumer-owned-compound-usage.js";
 import requireDismissibleModalBackdrop from "./rules/require-dismissible-modal-backdrop.js";
 import requireInteractiveComponentContract from "./rules/require-interactive-component-contract.js";
@@ -78,6 +79,7 @@ const plugin = {
     "require-assertions": requireAssertions,
     "require-composable-root-children": requireComposableRootChildren,
     "require-compound-component-api": requireCompoundComponentApi,
+    "require-contract-assertions": requireContractAssertions,
     "require-consumer-owned-compound-usage":
       requireConsumerOwnedCompoundUsage,
     "require-dismissible-modal-backdrop": requireDismissibleModalBackdrop,
@@ -131,6 +133,20 @@ const tigerstyleRules = {
   ],
 };
 
+const agentReadinessRules = {
+  ...recommendedRules,
+  ...tigerstyleRules,
+  [`${namespace}/require-assertions`]: [
+    "error",
+    {
+      checkExpressionBodies: true,
+      minimum: 2,
+      minimumStatements: 0,
+    },
+  ],
+  [`${namespace}/require-contract-assertions`]: "error",
+};
+
 const effectRules = {
   [`${namespace}/effect-error-handling`]: "error",
   [`${namespace}/no-barrel-imports`]: [
@@ -180,6 +196,7 @@ Object.assign(plugin.configs, {
     ...recommendedRules,
     ...tigerstyleRules,
   }),
+  agentReadiness: flatConfig("agent-readiness", agentReadinessRules),
   effect: flatConfig("effect", effectRules),
   react: flatConfig("react", reactRules),
   composition: flatConfig("composition", compositionRules),
