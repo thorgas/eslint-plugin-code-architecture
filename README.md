@@ -2,12 +2,13 @@
 
 Portable ESLint rules that turn architectural decisions into fast, local feedback for humans and coding agents.
 
-The plugin combines four ideas:
+The plugin combines five ideas:
 
 - [TigerStyle](https://tigerstyle.dev/): explicit limits, assertion density, small interfaces, and visible error handling.
 - [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase): high-cohesion verticals with explicit dependency direction and public surfaces.
 - [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves): strict lint feedback that keeps UI components declarative.
 - [Composition is all you need](https://www.youtube.com/watch?v=4KvbVq3Eg5w): compound components whose consumers control the child hierarchy.
+- [Evolu's TypeScript guides](https://www.evolu.dev/docs/dependency-injection): explicit dependency passing and consistent, top-down module conventions.
 
 It is ESM-only, supports ESLint flat config, and does not require type-aware linting.
 
@@ -35,6 +36,10 @@ const integrations = [
   // ...architecture.configs.composition,
   // Add only to files that implement or consume strict LEGO object APIs:
   // ...architecture.configs.lego,
+  // Add when adopting Evolu's dependency-injection convention:
+  // ...architecture.configs.evoluDependencyInjection,
+  // Add when adopting Evolu's broader TypeScript conventions:
+  // ...architecture.configs.evoluConventions,
 ];
 
 export default tseslint.config(
@@ -50,7 +55,7 @@ export default tseslint.config(
 Presets are flat-config arrays and fall into two groups:
 
 - Library-agnostic: `recommended`, `tigerstyle`, and `strict`. The `strict` preset combines the other two.
-- Optional library and architecture integrations: `effect`, `react`, `composition`, and `lego`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
+- Optional library and architecture integrations: `effect`, `react`, `composition`, `lego`, `evoluDependencyInjection`, and `evoluConventions`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
 
 ## Adopt incrementally in an existing codebase
 
@@ -197,6 +202,28 @@ These presets are never enabled by `recommended`, `tigerstyle`, or `strict`.
 | React | [`declarative-components`](docs/rules/declarative-components.md) | The project installs and uses React with declarative component conventions |
 | Composition guardrails | [`prefer-composition-over-configuration`](docs/rules/prefer-composition-over-configuration.md), [`require-composable-root-children`](docs/rules/require-composable-root-children.md), and [`no-root-owned-compound-parts`](docs/rules/no-root-owned-compound-parts.md) | Consumers should control the existence, order, repetition, and nesting of UI parts |
 | LEGO compound APIs | The `composition` rules plus [`require-compound-component-api`](docs/rules/require-compound-component-api.md) and [`require-consumer-owned-compound-usage`](docs/rules/require-consumer-owned-compound-usage.md) | Selected files use the public object-namespace Provider/Root-and-parts convention |
+| Evolu dependency injection | Five rules implementing Evolu's wrapper, `deps`, ordering, lean-dependency, and composition-root guidance | The project adopts Evolu's argument-based dependency-injection convention |
+| Evolu conventions | Six rules for named imports, unique exports, top-down order, arrows, immutability, and interfaces | The project adopts Evolu's TypeScript conventions |
+
+## Evolu dependency injection and conventions
+
+The two Evolu presets are direct, opt-in adaptations of Evolu's [Dependency Injection](https://www.evolu.dev/docs/dependency-injection) and [Conventions](https://www.evolu.dev/docs/conventions) pages:
+
+| Rule | Source behavior | Preset |
+| --- | --- | --- |
+| [`dependency-wrapper-shape`](docs/rules/dependency-wrapper-shape.md) | Wrap dependencies as distinct, readonly `*Dep` interfaces | `evoluDependencyInjection` |
+| [`dependency-parameter-convention`](docs/rules/dependency-parameter-convention.md) | Accept dependencies through one argument named `deps` | `evoluDependencyInjection` |
+| [`sort-dependency-types`](docs/rules/sort-dependency-types.md) | Sort combined dependency wrappers alphabetically | `evoluDependencyInjection` |
+| [`no-over-depending`](docs/rules/no-over-depending.md) | Require only dependencies the function uses | `evoluDependencyInjection` |
+| [`no-exported-dependency-instances`](docs/rules/no-exported-dependency-instances.md) | Keep created instances in the composition root | `evoluDependencyInjection` |
+| [`named-imports`](docs/rules/named-imports.md) | Use named imports | `evoluConventions` |
+| [`no-namespace-exports`](docs/rules/no-namespace-exports.md) | Export unique members instead of object namespaces | `evoluConventions` |
+| [`top-down-declarations`](docs/rules/top-down-declarations.md) | Put public contracts before implementation details | `evoluConventions` |
+| [`prefer-arrow-functions`](docs/rules/prefer-arrow-functions.md) | Use arrows except for TypeScript overloads | `evoluConventions` |
+| [`prefer-readonly-types`](docs/rules/prefer-readonly-types.md) | Use readonly interface properties and collections | `evoluConventions` |
+| [`prefer-interface-over-type`](docs/rules/prefer-interface-over-type.md) | Use interfaces until a type-only feature is needed | `evoluConventions` |
+
+The implementation stays syntax-only and documents the places where cross-file type resolution would be required. `evoluConventions` deliberately conflicts with namespace-object APIs, including files governed by the optional `lego` preset; scope those presets to different files.
 
 ## Consumer-owned composition
 
