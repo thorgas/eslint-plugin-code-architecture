@@ -1,11 +1,7 @@
-const calleeName = (node) => {
-  if (node.type === "Identifier") return node.name;
-  if (node.type !== "MemberExpression" || node.computed) return undefined;
-
-  const objectName = calleeName(node.object);
-  if (!objectName || node.property.type !== "Identifier") return undefined;
-  return `${objectName}.${node.property.name}`;
-};
+import {
+  assertionNameSet,
+  isAssertionCall,
+} from "./assertion-helpers.js";
 
 const rule = {
   meta: {
@@ -40,14 +36,7 @@ const rule = {
     const options = context.options[0] ?? {};
     const minimum = options.minimum ?? 2;
     const minimumStatements = options.minimumStatements ?? 1;
-    const assertionNames = new Set(
-      options.assertionNames ?? [
-        "assert",
-        "assertDefined",
-        "nodeAssert",
-        "nodeAssert.ok",
-      ],
-    );
+    const assertionNames = assertionNameSet(options.assertionNames);
     const functionStack = [];
 
     const enterFunction = (node) => {
@@ -85,8 +74,7 @@ const rule = {
         const current = functionStack.at(-1);
         if (!current) return;
 
-        const name = calleeName(node.callee);
-        if (name && assertionNames.has(name)) current.count += 1;
+        if (isAssertionCall(node, assertionNames)) current.count += 1;
       },
     };
   },

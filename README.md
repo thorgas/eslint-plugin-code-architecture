@@ -49,7 +49,7 @@ export default tseslint.config(
 
 Presets are flat-config arrays and fall into two groups:
 
-- Library-agnostic: `recommended`, `tigerstyle`, and `strict`. The `strict` preset combines the other two.
+- Library-agnostic: `recommended`, `tigerstyle`, `strict`, and `agentReadiness`. The `strict` preset combines `recommended` and `tigerstyle`; `agentReadiness` strengthens `strict` with per-function runtime contracts.
 - Optional library and architecture integrations: `effect`, `react`, `composition`, and `lego`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
 
 ## Adopt incrementally in an existing codebase
@@ -186,6 +186,24 @@ ESLint visits files independently, so a reliable “literal appears in two files
 | [`no-unsafe-type-assertions`](docs/rules/no-unsafe-type-assertions.md) | Ban casts and non-null assertions | `recommended` |
 | [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Require runtime validation around JSON parsing | `recommended` |
 | [`require-assertions`](docs/rules/require-assertions.md) | Require assertion density in functions | `tigerstyle` |
+| [`require-contract-assertions`](docs/rules/require-contract-assertions.md) | Assert every runtime parameter and returned value beyond its TypeScript type | `agentReadiness` |
+
+## Agent readiness
+
+`agentReadiness` is the most mechanically strict library-agnostic preset. It includes every `strict` rule and configures assertion enforcement for code produced or maintained by coding agents:
+
+- Every function, including concise arrows and otherwise trivial functions, contains at least two recognized runtime assertions.
+- Every runtime parameter binding is referenced by at least one semantic assertion.
+- Every nontrivial returned value is covered by a semantic assertion that dominates that return path.
+- Obvious checks already expressed by an explicit TypeScript annotation do not satisfy the parameter or return contract.
+
+```js
+export default [
+  ...architecture.configs.agentReadiness,
+];
+```
+
+This preset is intentionally demanding. A computed return should normally be assigned to a local binding, checked with a postcondition, and then returned. Statically evident returns such as literals, JSX, and function values do not need a separate return assertion, but the function still needs the two assertions required by `require-assertions`.
 
 ## Optional integrations
 

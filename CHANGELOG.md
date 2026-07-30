@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add the opt-in `agentReadiness` preset, combining `strict` with assertion checks for empty, trivial, and expression-bodied functions.
+- Add `require-contract-assertions` to require semantic runtime checks for every parameter binding and nontrivial return path without counting obvious checks already covered by explicit TypeScript annotations.
+
 ## 0.3.0
 
 - Repair the `composition` guardrails for component props, member slots, chained and optional collection mapping, aliases, structural variants, local helpers, wrapped Providers, and all-return-path children checks.
