@@ -202,7 +202,7 @@ These presets are never enabled by `recommended`, `tigerstyle`, or `strict`.
 | React | [`declarative-components`](docs/rules/declarative-components.md) | The project installs and uses React with declarative component conventions |
 | Composition guardrails | [`prefer-composition-over-configuration`](docs/rules/prefer-composition-over-configuration.md), [`require-composable-root-children`](docs/rules/require-composable-root-children.md), and [`no-root-owned-compound-parts`](docs/rules/no-root-owned-compound-parts.md) | Consumers should control the existence, order, repetition, and nesting of UI parts |
 | LEGO compound APIs | The `composition` rules plus [`require-compound-component-api`](docs/rules/require-compound-component-api.md) and [`require-consumer-owned-compound-usage`](docs/rules/require-consumer-owned-compound-usage.md) | Selected files use the public object-namespace Provider/Root-and-parts convention |
-| Evolu dependency injection | Five rules implementing Evolu's wrapper, `deps`, ordering, lean-dependency, and composition-root guidance | The project adopts Evolu's argument-based dependency-injection convention |
+| Evolu dependency injection | Six rules implementing Evolu's wrapper, `deps`, ordering, lean-dependency, implicit external-access, and composition-root guidance | The project adopts Evolu's argument-based dependency-injection convention |
 | Evolu conventions | Six rules for named imports, unique exports, top-down order, arrows, immutability, and interfaces | The project adopts Evolu's TypeScript conventions |
 
 ## Evolu dependency injection and conventions
@@ -216,6 +216,7 @@ The two Evolu presets are direct, opt-in adaptations of Evolu's [Dependency Inje
 | [`sort-dependency-types`](docs/rules/sort-dependency-types.md) | Sort combined dependency wrappers alphabetically | `evoluDependencyInjection` |
 | [`no-over-depending`](docs/rules/no-over-depending.md) | Require only dependencies the function uses | `evoluDependencyInjection` |
 | [`no-exported-dependency-instances`](docs/rules/no-exported-dependency-instances.md) | Keep created instances in the composition root | `evoluDependencyInjection` |
+| [`no-implicit-external-dependencies`](docs/rules/no-implicit-external-dependencies.md) | Route time, logging, and configured service locators through dependencies | `evoluDependencyInjection` |
 | [`named-imports`](docs/rules/named-imports.md) | Use named imports | `evoluConventions` |
 | [`no-namespace-exports`](docs/rules/no-namespace-exports.md) | Export unique members instead of object namespaces | `evoluConventions` |
 | [`top-down-declarations`](docs/rules/top-down-declarations.md) | Put public contracts before implementation details | `evoluConventions` |
@@ -224,6 +225,8 @@ The two Evolu presets are direct, opt-in adaptations of Evolu's [Dependency Inje
 | [`prefer-interface-over-type`](docs/rules/prefer-interface-over-type.md) | Use interfaces until a type-only feature is needed | `evoluConventions` |
 
 The implementation stays syntax-only and documents the places where cross-file type resolution would be required. `evoluConventions` deliberately conflicts with namespace-object APIs, including files governed by the optional `lego` preset; scope those presets to different files.
+
+`no-implicit-external-dependencies` defaults only to the external capabilities shown by Evolu: `Date.now` maps to `TimeDep`, and `console.*` maps to `LoggerDep`. Configure project-specific service locators such as database instances explicitly rather than relying on naming guesses.
 
 ## Consumer-owned composition
 
