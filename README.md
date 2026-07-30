@@ -345,6 +345,8 @@ Every rule has a compact passing example here, ordered from TypeScript to librar
 
 These rules have no UI or framework dependency. Use them in backend services, libraries, CLIs, workers, or frontend TypeScript.
 
+The Evolu-derived presets are opt-in. `no-implicit-external-dependencies` maps `Date.now` to `TimeDep` and `console.*` to `LoggerDep`; configure project-specific service locators explicitly rather than relying on naming guesses.
+
 | Rule | Immediate benefit | Passing shape | Preset |
 | --- | --- | --- | --- |
 | [`centralize-domain-literals`](docs/rules/centralize-domain-literals.md) | Fixed vocabulary has one owner | `if (job.status === JOB_STATUS.COMPLETED) {}` | Configure |
@@ -358,6 +360,7 @@ These rules have no UI or framework dependency. Use them in backend services, li
 | [`no-barrel-files`](docs/rules/no-barrel-files.md) | Dependency edges stay direct | Define `export function charge() {}` in `charge.js` | `recommended` |
 | [`no-barrel-imports`](docs/rules/no-barrel-imports.md) | Imports reveal their owner | `import { charge } from "./charge.js";` | `recommended`, `effect` |
 | [`no-exported-dependency-instances`](docs/rules/no-exported-dependency-instances.md) | Composition roots own service instances | `const logger = createLogger();` | `evoluDependencyInjection` |
+| [`no-implicit-external-dependencies`](docs/rules/no-implicit-external-dependencies.md) | Hidden time and logging access becomes injectable | `const now = deps.time.now();` | `evoluDependencyInjection` |
 | [`no-namespace-exports`](docs/rules/no-namespace-exports.md) | Exports remain unique and searchable | `export const parseUser = () => {};` | `evoluConventions` |
 | [`no-over-depending`](docs/rules/no-over-depending.md) | Functions request only what they use | `const log = (deps: LoggerDep) => deps.logger.log("ready");` | `evoluDependencyInjection` |
 | [`no-unasserted-return`](docs/rules/no-unasserted-return.md) | Returned call results carry evidence | `const user = await loadUser(); assert(user.id); return user;` | Configure |

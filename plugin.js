@@ -12,6 +12,7 @@ import noBarrelFiles from "./rules/no-barrel-files.js";
 import noBarrelImports from "./rules/no-barrel-imports.js";
 import noDesignIdentityOverrides from "./rules/no-design-identity-overrides.js";
 import noExportedDependencyInstances from "./rules/no-exported-dependency-instances.js";
+import noImplicitExternalDependencies from "./rules/no-implicit-external-dependencies.js";
 import noNamespaceExports from "./rules/no-namespace-exports.js";
 import noOverDepending from "./rules/no-over-depending.js";
 import noRawDesignProperties from "./rules/no-raw-design-properties.js";
@@ -59,6 +60,7 @@ const plugin = {
     "no-barrel-imports": noBarrelImports,
     "no-design-identity-overrides": noDesignIdentityOverrides,
     "no-exported-dependency-instances": noExportedDependencyInstances,
+    "no-implicit-external-dependencies": noImplicitExternalDependencies,
     "no-namespace-exports": noNamespaceExports,
     "no-over-depending": noOverDepending,
     "no-raw-design-properties": noRawDesignProperties,
@@ -157,6 +159,7 @@ const evoluDependencyInjectionRules = {
   [`${namespace}/dependency-parameter-convention`]: "error",
   [`${namespace}/dependency-wrapper-shape`]: "error",
   [`${namespace}/no-exported-dependency-instances`]: "error",
+  [`${namespace}/no-implicit-external-dependencies`]: "error",
   [`${namespace}/no-over-depending`]: "error",
   [`${namespace}/sort-dependency-types`]: "error",
 };

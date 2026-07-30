@@ -166,6 +166,7 @@ run;
 type LoggerDep = { logger: Logger };
 
 export const logger = createLogger();
+export const currentTime = Date.now();
 `,
   );
   await writeFile(
@@ -312,6 +313,7 @@ export const Example = () => (
     "code-architecture/dependency-wrapper-shape",
     "code-architecture/named-imports",
     "code-architecture/no-exported-dependency-instances",
+    "code-architecture/no-implicit-external-dependencies",
   ]) {
     if (!invalidEvoluRuleIds.has(expectedEvoluRule)) {
       throw new Error(

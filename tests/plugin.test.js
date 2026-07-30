@@ -22,6 +22,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "no-barrel-imports",
     "no-design-identity-overrides",
     "no-exported-dependency-instances",
+    "no-implicit-external-dependencies",
     "no-namespace-exports",
     "no-over-depending",
     "no-raw-design-properties",
@@ -148,6 +149,7 @@ test("Evolu presets expose only rules derived from the linked Evolu guides", () 
     "code-architecture/dependency-parameter-convention": "error",
     "code-architecture/dependency-wrapper-shape": "error",
     "code-architecture/no-exported-dependency-instances": "error",
+    "code-architecture/no-implicit-external-dependencies": "error",
     "code-architecture/no-over-depending": "error",
     "code-architecture/sort-dependency-types": "error",
   });
@@ -166,6 +168,9 @@ test("strict does not opt projects into Evolu-specific conventions", () => {
 
   expect(
     strictRules["code-architecture/dependency-wrapper-shape"],
+  ).toBeUndefined();
+  expect(
+    strictRules["code-architecture/no-implicit-external-dependencies"],
   ).toBeUndefined();
   expect(strictRules["code-architecture/named-imports"]).toBeUndefined();
 });
