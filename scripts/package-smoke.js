@@ -72,9 +72,9 @@ export default [
           allowedFiles: ["src/tokens/**"],
           values: [
             {
-              properties: ["color", "backgroundColor"],
+              properties: ["color", "tintColor"],
               replacement: "tokens.color.surface",
-              value: "#edf0eb",
+              value: "#EDF0EB",
             },
           ],
         },
@@ -98,8 +98,10 @@ export const recover = Effect.catchAll((error) => Effect.fail(error));
 `,
   );
   await writeFile(
-    join(consumerRoot, "src/invalid-design-values.ts"),
-    `export const card = { backgroundColor: "#edf0eb" };
+    join(consumerRoot, "src/invalid-design-values.tsx"),
+    `export const Spinner = () => (
+  <ActivityIndicator color="#EDF0EB" />
+);
 `,
   );
   await writeFile(
@@ -167,14 +169,16 @@ export const Example = () => (
 
   const invalidDesignValues = lintJson(
     consumerRoot,
-    "src/invalid-design-values.ts",
+    "src/invalid-design-values.tsx",
   );
   const expectedDesignRule = "code-architecture/no-raw-design-values";
+  const designMessages = invalidDesignValues.messages.filter(
+    ({ ruleId }) => ruleId === expectedDesignRule,
+  );
   if (
     invalidDesignValues.status !== 1 ||
-    !invalidDesignValues.messages.some(
-      ({ ruleId }) => ruleId === expectedDesignRule,
-    )
+    designMessages.length !== 1 ||
+    !designMessages[0]?.message.includes("tokens.color.surface")
   ) {
     throw new Error(
       `invalid consumer did not report ${expectedDesignRule}: ${JSON.stringify(invalidDesignValues.messages)}`,

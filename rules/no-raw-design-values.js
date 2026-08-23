@@ -2,6 +2,7 @@ import path from "node:path";
 import { minimatch } from "minimatch";
 
 const normalizePath = (value) => value.split(path.sep).join("/");
+const defaultReplacement = "an approved design token";
 
 const expressionKeys = {
   ArrayExpression: ["elements"],
@@ -31,6 +32,28 @@ const getPropertyName = (node) => {
   if (key.type === "Literal") return String(key.value);
   if (key.type === "TemplateLiteral" && key.expressions.length === 0) {
     return key.quasis[0]?.value.cooked;
+  }
+  return undefined;
+};
+
+const getJsxPropertyName = (node) =>
+  node.name.type === "JSXIdentifier" ? node.name.name : undefined;
+
+const getStaticJsxString = (node) => {
+  if (node.value?.type === "Literal" && typeof node.value.value === "string") {
+    return { node: node.value, value: node.value.value };
+  }
+  if (node.value?.type !== "JSXExpressionContainer") return undefined;
+
+  const expression = node.value.expression;
+  if (expression.type === "Literal" && typeof expression.value === "string") {
+    return { node: expression, value: expression.value };
+  }
+  if (
+    expression.type === "TemplateLiteral" &&
+    expression.expressions.length === 0
+  ) {
+    return { node: expression, value: expression.quasis[0]?.value.cooked };
   }
   return undefined;
 };
@@ -104,6 +127,33 @@ const isExcepted = (exceptions, property, value) =>
       (!exception.values || exception.values.includes(value)),
   );
 
+const reportRawValue = ({
+  configuredValues,
+  context,
+  exceptions,
+  match,
+  property,
+  reportedNodes,
+}) => {
+  if (
+    reportedNodes.has(match.node) ||
+    isExcepted(exceptions, property, match.value)
+  ) {
+    return;
+  }
+  reportedNodes.add(match.node);
+  context.report({
+    node: match.node,
+    messageId: "rawDesignValue",
+    data: {
+      property,
+      replacement:
+        configuredValues.get(match.value) ?? defaultReplacement,
+      value: String(match.value),
+    },
+  });
+};
+
 const rule = {
   meta: {
     type: "problem",
@@ -161,7 +211,7 @@ const rule = {
             items: {
               type: "object",
               additionalProperties: false,
-              required: ["properties", "replacement", "value"],
+              required: ["properties", "value"],
               properties: {
                 properties: {
                   type: "array",
@@ -197,8 +247,25 @@ const rule = {
       }
     }
     const sourceCode = context.sourceCode;
+    const reportedNodes = new WeakSet();
 
     return {
+      JSXAttribute(node) {
+        const property = getJsxPropertyName(node);
+        const configuredValues = valuesByProperty.get(property);
+        if (!configuredValues) return;
+
+        const match = getStaticJsxString(node);
+        if (!match || !configuredValues.has(match.value)) return;
+        reportRawValue({
+          configuredValues,
+          context,
+          exceptions,
+          match,
+          property,
+          reportedNodes,
+        });
+      },
       Property(node) {
         if (node.parent.type === "ObjectPattern") return;
         const property = getPropertyName(node);
@@ -210,15 +277,13 @@ const rule = {
           node.value,
           configuredValues,
         )) {
-          if (isExcepted(exceptions, property, match.value)) continue;
-          context.report({
-            node: match.node,
-            messageId: "rawDesignValue",
-            data: {
-              property,
-              replacement: configuredValues.get(match.value),
-              value: String(match.value),
-            },
+          reportRawValue({
+            configuredValues,
+            context,
+            exceptions,
+            match,
+            property,
+            reportedNodes,
           });
         }
       },

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Extend `no-raw-design-values` to configured JSX attributes while keeping runtime expressions and unconfigured attributes out of scope.
+
 ## 0.4.0-alpha.0
 
 - Add the opt-in, consumer-configured `no-raw-design-values` rule for semantic design-token enforcement in object style properties.
