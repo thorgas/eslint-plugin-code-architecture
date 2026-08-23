@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0-alpha.0
 
 - Add the opt-in, consumer-configured `no-raw-design-values` rule for semantic design-token enforcement in object style properties.
 - Support approved token files, narrow file/property/value exceptions, computed property keys, expression wrappers, and immutable local aliases without assuming a UI framework or token API.

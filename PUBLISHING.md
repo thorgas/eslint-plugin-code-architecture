@@ -21,6 +21,20 @@ gh release create v0.3.0 --verify-tag --generate-notes
 
 Replace `0.3.0` with the version being released. Publishing the GitHub release triggers the npm workflow; do not run `npm publish` locally for routine releases.
 
+For a prerelease, use a SemVer prerelease version and mark the GitHub release accordingly:
+
+```sh
+git tag -a v0.4.0-alpha.0 -m "v0.4.0-alpha.0"
+git push origin v0.4.0-alpha.0
+gh release create v0.4.0-alpha.0 --verify-tag --generate-notes --prerelease
+```
+
+The release workflow publishes versions containing a prerelease suffix under npm's `alpha` dist-tag. Stable versions publish under `latest`. Verify both tags after the workflow completes:
+
+```sh
+npm view eslint-plugin-code-architecture dist-tags --json
+```
+
 Configure the package's npm trusted publisher with:
 
 - GitHub owner: `thorgas`
