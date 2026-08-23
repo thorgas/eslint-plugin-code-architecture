@@ -7,15 +7,20 @@ import maxFunctionLines from "./rules/max-function-lines.js";
 import maxFunctionParameters from "./rules/max-function-parameters.js";
 import noBarrelFiles from "./rules/no-barrel-files.js";
 import noBarrelImports from "./rules/no-barrel-imports.js";
+import noDesignIdentityOverrides from "./rules/no-design-identity-overrides.js";
+import noRawDesignProperties from "./rules/no-raw-design-properties.js";
 import noRawDesignValues from "./rules/no-raw-design-values.js";
 import noRootOwnedCompoundParts from "./rules/no-root-owned-compound-parts.js";
 import noUnsafeTypeAssertions from "./rules/no-unsafe-type-assertions.js";
 import noUnvalidatedJsonParse from "./rules/no-unvalidated-json-parse.js";
 import preferCompositionOverConfiguration from "./rules/prefer-composition-over-configuration.js";
+import preferDesignSystemComponents from "./rules/prefer-design-system-components.js";
 import requireAssertions from "./rules/require-assertions.js";
 import requireComposableRootChildren from "./rules/require-composable-root-children.js";
 import requireCompoundComponentApi from "./rules/require-compound-component-api.js";
 import requireConsumerOwnedCompoundUsage from "./rules/require-consumer-owned-compound-usage.js";
+import requireDismissibleModalBackdrop from "./rules/require-dismissible-modal-backdrop.js";
+import requireInteractiveComponentContract from "./rules/require-interactive-component-contract.js";
 import packageMetadata from "./package.json" with { type: "json" };
 
 const namespace = "code-architecture";
@@ -37,17 +42,23 @@ const plugin = {
     "max-function-parameters": maxFunctionParameters,
     "no-barrel-files": noBarrelFiles,
     "no-barrel-imports": noBarrelImports,
+    "no-design-identity-overrides": noDesignIdentityOverrides,
+    "no-raw-design-properties": noRawDesignProperties,
     "no-raw-design-values": noRawDesignValues,
     "no-root-owned-compound-parts": noRootOwnedCompoundParts,
     "no-unsafe-type-assertions": noUnsafeTypeAssertions,
     "no-unvalidated-json-parse": noUnvalidatedJsonParse,
     "prefer-composition-over-configuration":
       preferCompositionOverConfiguration,
+    "prefer-design-system-components": preferDesignSystemComponents,
     "require-assertions": requireAssertions,
     "require-composable-root-children": requireComposableRootChildren,
     "require-compound-component-api": requireCompoundComponentApi,
     "require-consumer-owned-compound-usage":
       requireConsumerOwnedCompoundUsage,
+    "require-dismissible-modal-backdrop": requireDismissibleModalBackdrop,
+    "require-interactive-component-contract":
+      requireInteractiveComponentContract,
   },
 };
 

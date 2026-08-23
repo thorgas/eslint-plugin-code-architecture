@@ -56,6 +56,17 @@ import tseslint from "typescript-eslint";
 if (!architecture.configs.composition || !architecture.configs.lego) {
   throw new Error("composition and lego presets must be public");
 }
+for (const ruleName of [
+  "prefer-design-system-components",
+  "no-raw-design-properties",
+  "require-interactive-component-contract",
+  "require-dismissible-modal-backdrop",
+  "no-design-identity-overrides",
+]) {
+  if (!architecture.rules[ruleName]) {
+    throw new Error("missing public design-system rule: " + ruleName);
+  }
+}
 
 export default [
   ...architecture.configs.recommended,
@@ -76,6 +87,35 @@ export default [
               replacement: "tokens.color.surface",
               value: "#EDF0EB",
             },
+          ],
+        },
+      ],
+      "code-architecture/prefer-design-system-components": [
+        "error",
+        {
+          consumers: ["src/**"],
+          replacements: [
+            {
+              from: "react-native",
+              imported: ["Pressable"],
+              replacement: "@/components/ui/button",
+            },
+          ],
+        },
+      ],
+      "code-architecture/no-raw-design-properties": [
+        "error",
+        {
+          properties: [
+            { names: ["color"], replacement: "theme.colors" },
+          ],
+        },
+      ],
+      "code-architecture/no-design-identity-overrides": [
+        "error",
+        {
+          components: [
+            { names: ["Button"], identityProperties: ["color"] },
           ],
         },
       ],
@@ -112,6 +152,15 @@ export const recover = Effect.catchAll((error) => Effect.fail(error));
     <FooterComponent />
   </section>;
 }
+`,
+  );
+  await writeFile(
+    join(consumerRoot, "src/invalid-design-system.tsx"),
+    `import { Pressable } from "react-native";
+
+export const Example = () => (
+  <><Pressable /><Button color="#8A3D35" /></>
+);
 `,
   );
   await writeFile(
@@ -183,6 +232,25 @@ export const Example = () => (
     throw new Error(
       `invalid consumer did not report ${expectedDesignRule}: ${JSON.stringify(invalidDesignValues.messages)}`,
     );
+  }
+
+  const invalidDesignSystem = lintJson(
+    consumerRoot,
+    "src/invalid-design-system.tsx",
+  );
+  const designSystemRuleIds = new Set(
+    invalidDesignSystem.messages.map(({ ruleId }) => ruleId),
+  );
+  for (const expectedRule of [
+    "code-architecture/prefer-design-system-components",
+    "code-architecture/no-raw-design-properties",
+    "code-architecture/no-design-identity-overrides",
+  ]) {
+    if (!designSystemRuleIds.has(expectedRule)) {
+      throw new Error(
+        `invalid consumer did not report ${expectedRule}: ${JSON.stringify(invalidDesignSystem.messages)}`,
+      );
+    }
   }
 
   const valid = lintJson(consumerRoot, "src/valid-counter.tsx");
