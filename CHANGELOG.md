@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Let assertion-density presets exclude JSX callbacks and variable-bound zero-input orchestration closures while keeping XState actions, other call callbacks, boundary functions, and domain functions strict.
+
 ## 0.4.0-alpha.2
 
 - Scope the preset 70-line function limit to logic functions by excluding functions that own JSX UI.

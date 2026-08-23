@@ -57,7 +57,11 @@ test("strict remains library agnostic", () => {
 
   expect(strictRules["code-architecture/require-assertions"]).toEqual([
     "error",
-    { minimum: 2 },
+    {
+      ignoreJSXCallbacks: true,
+      ignoreNoInputClosures: true,
+      minimum: 2,
+    },
   ]);
   expect(
     strictRules["code-architecture/effect-error-handling"],
