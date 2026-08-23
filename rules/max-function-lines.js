@@ -15,6 +15,7 @@ const rule = {
         type: "object",
         additionalProperties: false,
         properties: {
+          ignoreJSX: { type: "boolean", default: false },
           max: { type: "integer", minimum: 1, default: 70 },
           skipBlankLines: { type: "boolean", default: false },
         },
@@ -25,6 +26,8 @@ const rule = {
     const options = context.options[0] ?? {};
     const max = options.max ?? 70;
     const sourceCode = context.sourceCode;
+    const functionStack = [];
+    const jsxFunctions = new WeakSet();
 
     const inspectFunction = (node) => {
       const firstLine = node.loc.start.line;
@@ -45,7 +48,23 @@ const rule = {
       });
     };
 
-    return { ":function": inspectFunction };
+    const markJsxFunction = () => {
+      const currentFunction = functionStack.at(-1);
+      if (currentFunction) jsxFunctions.add(currentFunction);
+    };
+
+    return {
+      ":function"(node) {
+        functionStack.push(node);
+      },
+      ":function:exit"(node) {
+        functionStack.pop();
+        if (options.ignoreJSX && jsxFunctions.has(node)) return;
+        inspectFunction(node);
+      },
+      JSXElement: markJsxFunction,
+      JSXFragment: markJsxFunction,
+    };
   },
 };
 

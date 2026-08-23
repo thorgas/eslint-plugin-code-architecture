@@ -73,6 +73,19 @@ test("strict remains library agnostic", () => {
   ).toBeUndefined();
 });
 
+test("line-limit presets exclude JSX UI functions", () => {
+  expect(
+    plugin.configs.recommended[0].rules[
+      "code-architecture/max-function-lines"
+    ],
+  ).toEqual(["error", { ignoreJSX: true, max: 70 }]);
+  expect(
+    plugin.configs.tigerstyle[0].rules[
+      "code-architecture/max-function-lines"
+    ],
+  ).toEqual(["error", { ignoreJSX: true, max: 70 }]);
+});
+
 test("composition preset exposes only the consumer-owned layout rules", () => {
   expect(plugin.configs.composition[0].rules).toEqual({
     "code-architecture/no-root-owned-compound-parts": "error",

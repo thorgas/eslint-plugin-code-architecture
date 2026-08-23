@@ -61,7 +61,10 @@ const flatConfig = (name, rules) => [
 
 const recommendedRules = {
   [`${namespace}/imports-first`]: "error",
-  [`${namespace}/max-function-lines`]: ["error", { max: 70 }],
+  [`${namespace}/max-function-lines`]: [
+    "error",
+    { ignoreJSX: true, max: 70 },
+  ],
   [`${namespace}/max-function-parameters`]: ["error", { max: 5 }],
   [`${namespace}/no-barrel-files`]: "error",
   [`${namespace}/no-barrel-imports`]: "error",
@@ -70,7 +73,10 @@ const recommendedRules = {
 };
 
 const tigerstyleRules = {
-  [`${namespace}/max-function-lines`]: ["error", { max: 70 }],
+  [`${namespace}/max-function-lines`]: [
+    "error",
+    { ignoreJSX: true, max: 70 },
+  ],
   [`${namespace}/max-function-parameters`]: ["error", { max: 5 }],
   [`${namespace}/require-assertions`]: ["error", { minimum: 2 }],
 };
