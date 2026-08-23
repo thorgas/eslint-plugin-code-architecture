@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0-alpha.3
 
 - Let assertion-density presets exclude JSX callbacks and variable-bound zero-input orchestration closures while keeping XState actions, other call callbacks, boundary functions, and domain functions strict.
 
