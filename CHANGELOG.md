@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0-alpha.2
 
 - Scope the preset 70-line function limit to logic functions by excluding functions that own JSX UI.
 
