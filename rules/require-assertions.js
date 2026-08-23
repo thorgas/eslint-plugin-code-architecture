@@ -7,6 +7,28 @@ const calleeName = (node) => {
   return `${objectName}.${node.property.name}`;
 };
 
+const isFunction = (node) =>
+  node.type === "ArrowFunctionExpression" ||
+  node.type === "FunctionDeclaration" ||
+  node.type === "FunctionExpression";
+
+const isNoInputClosure = (node) => {
+  return (
+    node.type !== "FunctionDeclaration" &&
+    node.params.length === 0 &&
+    node.parent.type === "VariableDeclarator" &&
+    node.parent.init === node
+  );
+};
+
+const isJSXCallback = (node) => {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (isFunction(parent)) return false;
+    if (parent.type === "JSXAttribute") return true;
+  }
+  return false;
+};
+
 const rule = {
   meta: {
     type: "suggestion",
@@ -24,6 +46,8 @@ const rule = {
         type: "object",
         additionalProperties: false,
         properties: {
+          ignoreJSXCallbacks: { type: "boolean", default: false },
+          ignoreNoInputClosures: { type: "boolean", default: false },
           minimum: { type: "integer", minimum: 0, default: 2 },
           minimumStatements: { type: "integer", minimum: 0, default: 1 },
           assertionNames: {
@@ -59,6 +83,8 @@ const rule = {
       if (!current) return;
 
       const { node } = current;
+      if (options.ignoreJSXCallbacks && isJSXCallback(node)) return;
+      if (options.ignoreNoInputClosures && isNoInputClosure(node)) return;
       if (
         node.body.type !== "BlockStatement" &&
         !options.checkExpressionBodies

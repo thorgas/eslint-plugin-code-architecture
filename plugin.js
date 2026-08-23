@@ -78,7 +78,14 @@ const tigerstyleRules = {
     { ignoreJSX: true, max: 70 },
   ],
   [`${namespace}/max-function-parameters`]: ["error", { max: 5 }],
-  [`${namespace}/require-assertions`]: ["error", { minimum: 2 }],
+  [`${namespace}/require-assertions`]: [
+    "error",
+    {
+      ignoreJSXCallbacks: true,
+      ignoreNoInputClosures: true,
+      minimum: 2,
+    },
+  ],
 };
 
 const effectRules = {
