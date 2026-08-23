@@ -7,6 +7,7 @@ import maxFunctionLines from "./rules/max-function-lines.js";
 import maxFunctionParameters from "./rules/max-function-parameters.js";
 import noBarrelFiles from "./rules/no-barrel-files.js";
 import noBarrelImports from "./rules/no-barrel-imports.js";
+import noRawDesignValues from "./rules/no-raw-design-values.js";
 import noRootOwnedCompoundParts from "./rules/no-root-owned-compound-parts.js";
 import noUnsafeTypeAssertions from "./rules/no-unsafe-type-assertions.js";
 import noUnvalidatedJsonParse from "./rules/no-unvalidated-json-parse.js";
@@ -36,6 +37,7 @@ const plugin = {
     "max-function-parameters": maxFunctionParameters,
     "no-barrel-files": noBarrelFiles,
     "no-barrel-imports": noBarrelImports,
+    "no-raw-design-values": noRawDesignValues,
     "no-root-owned-compound-parts": noRootOwnedCompoundParts,
     "no-unsafe-type-assertions": noUnsafeTypeAssertions,
     "no-unvalidated-json-parse": noUnvalidatedJsonParse,
