@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0-alpha.4
+## 0.4.0
 
 - Add five opt-in, configurable rules for design-system component adoption, token-only design properties, shared interactive contracts, dismissible transparent surfaces, and protected component identity.
 
