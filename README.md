@@ -206,6 +206,8 @@ ESLint visits files independently, so a reliable “literal appears in two files
 
 The rule is deliberately excluded from every preset. It does not assume React, React Native, CSS-in-JS, a token API, or that an arbitrary repeated number is a design value. See [`no-raw-design-values`](docs/rules/no-raw-design-values.md) for its syntax-only limits.
 
+Design-system adoption rules are also opt-in. Activate a rule only after the matching primitive, token family, interaction contract, dismissal pattern, or component variants exist and their intended consumers have migrated. Enabling them earlier would turn architectural feedback into suppressions rather than adoption.
+
 ## Library-agnostic rules
 
 | Rule | Purpose | Preset |
@@ -217,10 +219,15 @@ The rule is deliberately excluded from every preset. It does not assume React, R
 | [`max-function-parameters`](docs/rules/max-function-parameters.md) | Bound positional inputs | `recommended`, `tigerstyle` |
 | [`no-barrel-files`](docs/rules/no-barrel-files.md) | Disallow re-export barrels | `recommended` |
 | [`no-barrel-imports`](docs/rules/no-barrel-imports.md) | Require concrete module imports | `recommended`, `effect` |
+| [`no-design-identity-overrides`](docs/rules/no-design-identity-overrides.md) | Preserve component identity while permitting layout overrides | Configure |
+| [`no-raw-design-properties`](docs/rules/no-raw-design-properties.md) | Reject any static literal in configured design properties | Configure |
 | [`no-raw-design-values`](docs/rules/no-raw-design-values.md) | Require configured values to use semantic tokens in configured properties | Configure |
 | [`no-unsafe-type-assertions`](docs/rules/no-unsafe-type-assertions.md) | Ban casts and non-null assertions | `recommended` |
 | [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Require runtime validation around JSON parsing | `recommended` |
+| [`prefer-design-system-components`](docs/rules/prefer-design-system-components.md) | Replace configured platform primitives in consumer paths | Configure |
 | [`require-assertions`](docs/rules/require-assertions.md) | Require assertion density in functions | `tigerstyle` |
+| [`require-dismissible-modal-backdrop`](docs/rules/require-dismissible-modal-backdrop.md) | Require close and outside-press paths for transparent surfaces | Configure |
+| [`require-interactive-component-contract`](docs/rules/require-interactive-component-contract.md) | Require accessible shared-interaction contracts | Configure |
 
 ## Optional integrations
 

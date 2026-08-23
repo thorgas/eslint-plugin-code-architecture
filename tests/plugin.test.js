@@ -17,15 +17,20 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "max-function-parameters",
     "no-barrel-files",
     "no-barrel-imports",
+    "no-design-identity-overrides",
+    "no-raw-design-properties",
     "no-raw-design-values",
     "no-root-owned-compound-parts",
     "no-unsafe-type-assertions",
     "no-unvalidated-json-parse",
     "prefer-composition-over-configuration",
+    "prefer-design-system-components",
     "require-assertions",
     "require-composable-root-children",
     "require-compound-component-api",
     "require-consumer-owned-compound-usage",
+    "require-dismissible-modal-backdrop",
+    "require-interactive-component-contract",
   ]);
   expect(plugin.configs.recommended).toBeArray();
   expect(plugin.configs.tigerstyle).toBeArray();
@@ -96,4 +101,22 @@ test("composition preset exposes only the consumer-owned layout rules", () => {
     "code-architecture/prefer-composition-over-configuration": "error",
     "code-architecture/require-composable-root-children": "error",
   });
+});
+
+test("design-system adoption rules remain opt-in", () => {
+  const designRules = [
+    "no-design-identity-overrides",
+    "no-raw-design-properties",
+    "prefer-design-system-components",
+    "require-dismissible-modal-backdrop",
+    "require-interactive-component-contract",
+  ];
+
+  for (const config of Object.values(plugin.configs)) {
+    for (const ruleName of designRules) {
+      expect(
+        config[0].rules[`code-architecture/${ruleName}`],
+      ).toBeUndefined();
+    }
+  }
 });

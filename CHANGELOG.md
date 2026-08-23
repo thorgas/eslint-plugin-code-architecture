@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add five opt-in, configurable rules for design-system component adoption, token-only design properties, shared interactive contracts, dismissible transparent surfaces, and protected component identity.
+
 ## 0.4.0-alpha.3
 
 - Let assertion-density presets exclude JSX callbacks and variable-bound zero-input orchestration closures while keeping XState actions, other call callbacks, boundary functions, and domain functions strict.
