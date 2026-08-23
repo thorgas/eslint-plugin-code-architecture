@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-code-architecture",
-  "version": "0.3.0",
+  "version": "0.4.0-alpha.0",
   "description": "Portable ESLint rules for vertical architecture, TigerStyle, Effect, and runtime safety",
   "type": "module",
   "sideEffects": false,
@@ -40,8 +40,8 @@
     "pack:check": "npm pack --dry-run",
     "smoke:package": "node scripts/package-smoke.js",
     "prepublishOnly": "bun run check",
-    "release:check": "npm publish --dry-run --access public",
-    "release:publish": "npm publish --access public",
+    "release:check": "node scripts/publish-package.js --dry-run",
+    "release:publish": "node scripts/publish-package.js --publish",
     "test": "bun test",
     "test:coverage": "bun test --coverage"
   },

@@ -24,4 +24,4 @@ jobs:
           package-manager-cache: false
       - run: bun install
       - run: bun run check
-      - run: npm publish --provenance --access public
+      - run: npm run release:publish
