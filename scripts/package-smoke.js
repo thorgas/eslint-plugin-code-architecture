@@ -65,6 +65,21 @@ export default [
   {
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: { parser: tseslint.parser },
+    rules: {
+      "code-architecture/no-raw-design-values": [
+        "error",
+        {
+          allowedFiles: ["src/tokens/**"],
+          values: [
+            {
+              properties: ["color", "backgroundColor"],
+              replacement: "tokens.color.surface",
+              value: "#edf0eb",
+            },
+          ],
+        },
+      ],
+    },
   },
 ];
 `,
@@ -80,6 +95,11 @@ export const decodeConfig = (content: string) =>
   Schema.decodeUnknownSync(Config)(JSON.parse(content));
 
 export const recover = Effect.catchAll((error) => Effect.fail(error));
+`,
+  );
+  await writeFile(
+    join(consumerRoot, "src/invalid-design-values.ts"),
+    `export const card = { backgroundColor: "#edf0eb" };
 `,
   );
   await writeFile(
@@ -143,6 +163,22 @@ export const Example = () => (
     "code-architecture/prefer-composition-over-configuration";
   if (!invalidRuleIds.has(expectedRule)) {
     throw new Error(`invalid consumer did not report ${expectedRule}`);
+  }
+
+  const invalidDesignValues = lintJson(
+    consumerRoot,
+    "src/invalid-design-values.ts",
+  );
+  const expectedDesignRule = "code-architecture/no-raw-design-values";
+  if (
+    invalidDesignValues.status !== 1 ||
+    !invalidDesignValues.messages.some(
+      ({ ruleId }) => ruleId === expectedDesignRule,
+    )
+  ) {
+    throw new Error(
+      `invalid consumer did not report ${expectedDesignRule}: ${JSON.stringify(invalidDesignValues.messages)}`,
+    );
   }
 
   const valid = lintJson(consumerRoot, "src/valid-counter.tsx");

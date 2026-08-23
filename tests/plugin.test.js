@@ -17,6 +17,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "max-function-parameters",
     "no-barrel-files",
     "no-barrel-imports",
+    "no-raw-design-values",
     "no-root-owned-compound-parts",
     "no-unsafe-type-assertions",
     "no-unvalidated-json-parse",
@@ -66,6 +67,9 @@ test("strict remains library agnostic", () => {
   ).toBeUndefined();
   expect(
     strictRules["code-architecture/prefer-composition-over-configuration"],
+  ).toBeUndefined();
+  expect(
+    strictRules["code-architecture/no-raw-design-values"],
   ).toBeUndefined();
 });
 

@@ -71,7 +71,7 @@ export default tseslint.config({
 });
 ```
 
-Once warnings are resolved, change them to errors and add the next rule. Apply `effect`, `react`, or `composition` only to files that use the corresponding library or architecture. Project-specific rules such as `enforce-module-boundaries` and `centralize-domain-literals` still require explicit domain configuration.
+Once warnings are resolved, change them to errors and add the next rule. Apply `effect`, `react`, or `composition` only to files that use the corresponding library or architecture. Project-specific rules such as `enforce-module-boundaries`, `centralize-domain-literals`, and `no-raw-design-values` still require explicit consumer configuration.
 
 ## Using Biome and Oxlint alongside the plugin
 
@@ -172,6 +172,40 @@ ESLint visits files independently, so a reliable “literal appears in two files
 ]
 ```
 
+## Design tokens
+
+`no-raw-design-values` prohibits explicitly configured string or numeric values only when they appear in configured object properties. Consumers provide the semantic meaning: which values and properties belong together, their approved token replacements, token files, and narrow exceptions.
+
+```js
+"architecture/no-raw-design-values": [
+  "error",
+  {
+    allowedFiles: ["src/ui/tokens/**"],
+    values: [
+      {
+        properties: ["color", "backgroundColor"],
+        replacement: "tokens.color.surface",
+        value: "#edf0eb",
+      },
+      {
+        properties: ["gap", "padding"],
+        replacement: "tokens.space.md",
+        value: 16,
+      },
+    ],
+    exceptions: [
+      {
+        files: ["src/charts/**"],
+        properties: ["color"],
+        values: ["#edf0eb"],
+      },
+    ],
+  },
+]
+```
+
+The rule is deliberately excluded from every preset. It does not assume React, React Native, CSS-in-JS, a token API, or that an arbitrary repeated number is a design value. See [`no-raw-design-values`](docs/rules/no-raw-design-values.md) for its syntax-only limits.
+
 ## Library-agnostic rules
 
 | Rule | Purpose | Preset |
@@ -183,6 +217,7 @@ ESLint visits files independently, so a reliable “literal appears in two files
 | [`max-function-parameters`](docs/rules/max-function-parameters.md) | Bound positional inputs | `recommended`, `tigerstyle` |
 | [`no-barrel-files`](docs/rules/no-barrel-files.md) | Disallow re-export barrels | `recommended` |
 | [`no-barrel-imports`](docs/rules/no-barrel-imports.md) | Require concrete module imports | `recommended`, `effect` |
+| [`no-raw-design-values`](docs/rules/no-raw-design-values.md) | Require configured values to use semantic tokens in configured properties | Configure |
 | [`no-unsafe-type-assertions`](docs/rules/no-unsafe-type-assertions.md) | Ban casts and non-null assertions | `recommended` |
 | [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Require runtime validation around JSON parsing | `recommended` |
 | [`require-assertions`](docs/rules/require-assertions.md) | Require assertion density in functions | `tigerstyle` |
