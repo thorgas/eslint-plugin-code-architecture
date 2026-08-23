@@ -213,7 +213,7 @@ The rule is deliberately excluded from every preset. It does not assume React, R
 | [`centralize-domain-literals`](docs/rules/centralize-domain-literals.md) | Keep fixed vocabulary in constants modules | Configure |
 | [`enforce-module-boundaries`](docs/rules/enforce-module-boundaries.md) | Enforce vertical dependency direction and public surfaces | Configure |
 | [`imports-first`](docs/rules/imports-first.md) | Keep dependencies at the top of a module | `recommended` |
-| [`max-function-lines`](docs/rules/max-function-lines.md) | Enforce the 70-line TigerStyle limit | `recommended`, `tigerstyle` |
+| [`max-function-lines`](docs/rules/max-function-lines.md) | Enforce the 70-line TigerStyle limit for logic functions | `recommended`, `tigerstyle` |
 | [`max-function-parameters`](docs/rules/max-function-parameters.md) | Bound positional inputs | `recommended`, `tigerstyle` |
 | [`no-barrel-files`](docs/rules/no-barrel-files.md) | Disallow re-export barrels | `recommended` |
 | [`no-barrel-imports`](docs/rules/no-barrel-imports.md) | Require concrete module imports | `recommended`, `effect` |
