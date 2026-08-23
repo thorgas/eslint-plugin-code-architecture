@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0-alpha.1
 
 - Extend `no-raw-design-values` to configured JSX attributes while keeping runtime expressions and unconfigured attributes out of scope.
 
