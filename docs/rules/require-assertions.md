@@ -4,7 +4,7 @@ Requires a minimum number of runtime assertions per function. The TigerStyle pre
 
 Default assertion names are `assert`, `assertDefined`, `nodeAssert`, and `nodeAssert.ok`. Configure `assertionNames` for application helpers, `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
 
-The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreNoInputClosures: true`, and `ignoreTrivialConstructors: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
+The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreJSXComponents: true`, `ignoreNoInputClosures: true`, and `ignoreTrivialConstructors: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
 
 ```tsx
 <List renderItem={({ item }) => <Row item={item} />} />;
@@ -50,7 +50,7 @@ const handlers = {
 
 Everything else stays strict: object-property handlers not nested directly in a call argument, functions in an `ArrayExpression` such as XState transition actions, functions bound to a variable and passed by name, function declarations, class and object methods, callbacks longer than `directCallbackMaxStatements`, and IIFEs.
 
-`ignoreNoInputClosures` excludes a zero-parameter function regardless of whether it is declared as `const f = () => {...}` or `function f() {...}` — both forms are treated identically, so a zero-argument factory declared with `function` is exempt exactly like the arrow form:
+`ignoreNoInputClosures` excludes a zero-parameter function expression bound to a variable, and a zero-parameter `function f() {...}` declaration whose body is a single `return` — a factory. Declaration syntax alone no longer decides it:
 
 ```ts
 function buildDefaults() {
@@ -58,7 +58,18 @@ function buildDefaults() {
 }
 ```
 
-A `FunctionDeclaration` (or arrow) that takes parameters is unaffected and stays strict.
+A `FunctionDeclaration` (or arrow) that takes parameters is unaffected and stays strict, and so is a zero-parameter declaration that *does* something rather than only returning a value — `function initialize() { startServices(); connectObservers(); }` still owes the postcondition that its work landed.
+
+`ignoreJSXComponents` excludes a function that returns JSX. A component's preconditions are its typed props contract, and its body renders rather than computes, so an assertion there restates the type system — the same reasoning that gives `max-function-lines` its `ignoreJSX` option:
+
+```tsx
+function TonalIcon({ name }: Props) {
+  const theme = useTheme();
+  return <Squircle style={theme.chip}><Icon name={name} /></Squircle>;
+}
+```
+
+A function is judged by its **own** return, never by a callback's, so a data function that maps over a renderer stays strict. Hooks and helpers that return data rather than markup also stay strict — a `use*` hook can hold a genuine invariant, and this option deliberately does not reach it.
 
 `ignoreTrivialConstructors` excludes a class constructor whose body contains only a `super(...)` call and/or assignments of the form `this.<field> = ...` — nothing else. This targets Error-subclass boilerplate with a fixed message, where there is no invariant to assert:
 

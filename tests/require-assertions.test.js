@@ -106,9 +106,9 @@ test("require-assertions can ignore no-input orchestration closures", () => {
 
 test("require-assertions keeps boundary and domain functions strict", () => {
   const messages = lintRule({
-    code: `function initialize(config) {
-  startServices(config);
-  connectObservers(config);
+    code: `function initialize() {
+  startServices();
+  connectObservers();
 }
 
 function summarize(values) {
@@ -339,6 +339,82 @@ test("require-assertions treats a zero-parameter FunctionDeclaration as a no-inp
   });
 
   expect(messages).toHaveLength(0);
+});
+
+test("require-assertions can ignore functions that render JSX", () => {
+  const messages = lintRule({
+    code: `function TonalIcon({ name }) {
+  const t = useTheme();
+  return <SquircleView style={t.chip}><Icon name={name} /></SquircleView>;
+}
+
+const Badge = ({ label }) => <Text>{label}</Text>;
+
+function MaybeRow({ row }) {
+  const t = useTheme();
+  return row ? <Row style={t.row} value={row} /> : null;
+}`,
+    filename: "src/screen.tsx",
+    options: [{ ignoreJSXComponents: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions keeps hooks and helpers strict under ignoreJSXComponents", () => {
+  const messages = lintRule({
+    code: `function useRowModel(rows) {
+  const total = rows.length;
+  return { rows, total };
+}
+
+function niceMax(values) {
+  const highest = Math.max(...values);
+  return Math.ceil(highest / 10) * 10;
+}
+
+function RowList({ rows }) {
+  const model = useRowModel(rows);
+  return <List data={model.rows} />;
+}`,
+    filename: "src/screen.tsx",
+    options: [{ ignoreJSXComponents: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(2);
+});
+
+test("require-assertions judges a component by its own return, not a callback's", () => {
+  const messages = lintRule({
+    code: `function buildRow(rows) {
+  const first = rows[0];
+  return renderer.map(() => <Cell value={first} />);
+}`,
+    filename: "src/screen.tsx",
+    options: [{ ignoreJSXComponents: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions keeps a working zero-parameter FunctionDeclaration strict under ignoreNoInputClosures", () => {
+  const messages = lintRule({
+    code: `function initialize() {
+  startServices();
+  connectObservers();
+}`,
+    options: [{ ignoreNoInputClosures: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
 });
 
 test("require-assertions keeps a FunctionDeclaration with parameters strict under ignoreNoInputClosures", () => {

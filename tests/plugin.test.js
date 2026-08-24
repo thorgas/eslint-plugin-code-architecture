@@ -5,7 +5,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
   expect(plugin.meta).toEqual({
     name: "eslint-plugin-code-architecture",
     namespace: "code-architecture",
-    version: "0.5.0-alpha.1",
+    version: "0.5.0-alpha.2",
   });
   expect(Object.keys(plugin.rules).sort()).toEqual([
     "centralize-domain-literals",
@@ -65,6 +65,7 @@ test("strict remains library agnostic", () => {
     {
       ignoreDirectCallbacks: true,
       ignoreJSXCallbacks: true,
+      ignoreJSXComponents: true,
       ignoreNoInputClosures: true,
       ignoreTrivialConstructors: true,
       minimum: 2,

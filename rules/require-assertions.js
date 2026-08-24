@@ -12,9 +12,20 @@ const isFunction = (node) =>
   node.type === "FunctionDeclaration" ||
   node.type === "FunctionExpression";
 
+// A zero-parameter `function foo() { return {...}; }` factory is the same shape
+// as the `const foo = () => ({...})` form this option already exempts, so the
+// declaration syntax alone should not decide it. It is limited to a lone return
+// on purpose: a zero-parameter function that *does* something - `function
+// initialize() { startServices(); connectObservers(); }` - still owes the
+// postcondition that its work landed, and stays strict.
+const isReturnOnlyFactory = (node) =>
+  node.body.type === "BlockStatement" &&
+  node.body.body.length === 1 &&
+  node.body.body[0].type === "ReturnStatement";
+
 const isNoInputClosure = (node) => {
   if (node.params.length !== 0) return false;
-  if (node.type === "FunctionDeclaration") return true;
+  if (node.type === "FunctionDeclaration") return isReturnOnlyFactory(node);
 
   return node.parent.type === "VariableDeclarator" && node.parent.init === node;
 };
@@ -87,6 +98,50 @@ const isJSXCallback = (node) => {
   return false;
 };
 
+const isJSXValue = (node) => {
+  if (!node) return false;
+  if (node.type === "JSXElement" || node.type === "JSXFragment") return true;
+  if (node.type === "ConditionalExpression") {
+    return isJSXValue(node.consequent) || isJSXValue(node.alternate);
+  }
+  if (node.type === "LogicalExpression") {
+    return isJSXValue(node.left) || isJSXValue(node.right);
+  }
+  return false;
+};
+
+// Walks the function's own statements, never descending into a nested
+// function, so a component that happens to define a callback is judged by
+// what IT returns rather than by what the callback returns.
+const returnsJSX = (node) => {
+  if (node.body.type !== "BlockStatement") return isJSXValue(node.body);
+
+  const pending = [...node.body.body];
+  while (pending.length > 0) {
+    const statement = pending.pop();
+    if (!statement || typeof statement.type !== "string") continue;
+    if (isFunction(statement)) continue;
+    if (statement.type === "ReturnStatement") {
+      if (isJSXValue(statement.argument)) return true;
+      continue;
+    }
+    for (const [key, value] of Object.entries(statement)) {
+      // AST nodes carry a `parent` back-pointer; following it walks in circles.
+      if (key === "parent") continue;
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item && typeof item === "object" && !isFunction(item)) {
+            pending.push(item);
+          }
+        }
+      } else if (value && typeof value === "object" && "type" in value) {
+        if (!isFunction(value)) pending.push(value);
+      }
+    }
+  }
+  return false;
+};
+
 const rule = {
   meta: {
     type: "suggestion",
@@ -111,6 +166,7 @@ const rule = {
             default: 3,
           },
           ignoreJSXCallbacks: { type: "boolean", default: false },
+          ignoreJSXComponents: { type: "boolean", default: false },
           ignoreNoInputClosures: { type: "boolean", default: false },
           ignoreTrivialConstructors: { type: "boolean", default: false },
           minimum: { type: "integer", minimum: 0, default: 2 },
@@ -160,6 +216,7 @@ const rule = {
       if (options.ignoreTrivialConstructors && isTrivialConstructor(node)) {
         return;
       }
+      if (options.ignoreJSXComponents && returnsJSX(node)) return;
       if (
         node.body.type !== "BlockStatement" &&
         !options.checkExpressionBodies

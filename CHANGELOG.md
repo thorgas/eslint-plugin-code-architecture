@@ -1,9 +1,10 @@
 # Changelog
 
-## 0.5.0-alpha.1
+## 0.5.0-alpha.2
 
 - Extend `ignoreDirectCallbacks` in `require-assertions` to exempt a callback nested exactly one level inside an options-object argument (`stream(request, { onDone: () => {...} })`), while keeping variable-bound handler maps, two-levels-deep nesting, and array-member callbacks (XState actions) strict.
-- Make `ignoreNoInputClosures` in `require-assertions` treat a zero-parameter `FunctionDeclaration` the same as the equivalent arrow form, instead of only exempting the variable-bound closure.
+- Make `ignoreNoInputClosures` in `require-assertions` treat a zero-parameter `FunctionDeclaration` that only returns a value the same as the equivalent arrow form. A zero-parameter declaration that performs work still owes the postcondition that its work landed, and stays strict.
+- Add the opt-in `ignoreJSXComponents` option to `require-assertions`, exempting a function that returns JSX — its preconditions are the typed props contract, and it renders rather than computes. Hooks and helpers that return data stay strict, and a component is judged by its own return rather than by a callback's. Enabled in the `tigerstyle` and `strict` presets, mirroring the existing `ignoreJSX` on `max-function-lines`.
 - Add the opt-in `ignoreTrivialConstructors` option to `require-assertions`, exempting a class constructor whose body is only a `super(...)` call and/or `this.<field> = ...` assignments — enabled in the `tigerstyle` and `strict` presets.
 
 ## 0.5.0-alpha.0
