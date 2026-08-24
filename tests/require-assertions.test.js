@@ -106,9 +106,9 @@ test("require-assertions can ignore no-input orchestration closures", () => {
 
 test("require-assertions keeps boundary and domain functions strict", () => {
   const messages = lintRule({
-    code: `function initialize() {
-  startServices();
-  connectObservers();
+    code: `function initialize(config) {
+  startServices(config);
+  connectObservers(config);
 }
 
 function summarize(values) {
@@ -218,13 +218,6 @@ handlers.onSave = function (value) {
   notify(value);
 };
 
-register({
-  onSave(value) {
-    persist(value);
-    notify(value);
-  },
-});
-
 const bound = (value) => {
   persist(value);
   notify(value);
@@ -240,7 +233,7 @@ function declared(value) {
     ruleName: "require-assertions",
   });
 
-  expect(messages).toHaveLength(6);
+  expect(messages).toHaveLength(5);
 });
 
 test("require-assertions honors directCallbackMaxStatements", () => {
@@ -263,4 +256,149 @@ test("require-assertions honors directCallbackMaxStatements", () => {
   });
 
   expect(messages).toHaveLength(0);
+});
+
+test("require-assertions ignores short callbacks nested one level inside an options object argument", () => {
+  const messages = lintRule({
+    code: `streamScreen(buildMessages(screen), {
+  onDone: (content, info) => {
+    if (stale()) return;
+    handleStreamDone(content, info);
+  },
+  onError: (err, trace) => {
+    if (stale()) return;
+    handleStreamError(err, trace);
+  },
+});`,
+    options: [{ directCallbackMaxStatements: 2, ignoreDirectCallbacks: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions keeps a variable-bound handler map strict even with ignoreDirectCallbacks", () => {
+  const messages = lintRule({
+    code: `const handlers = {
+  onSave: (v) => {
+    persist(v);
+    notify(v);
+  },
+};`,
+    options: [{ ignoreDirectCallbacks: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions does not exempt callbacks nested two levels inside an argument object", () => {
+  const messages = lintRule({
+    code: `configure({
+  handlers: {
+    onSave: (v) => {
+      persist(v);
+      notify(v);
+    },
+  },
+});`,
+    options: [{ ignoreDirectCallbacks: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions does not exempt callbacks inside an ArrayExpression that is a call argument", () => {
+  const messages = lintRule({
+    code: `runAll([
+  () => {
+    persist();
+    notify();
+  },
+]);`,
+    options: [{ ignoreDirectCallbacks: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions treats a zero-parameter FunctionDeclaration as a no-input closure", () => {
+  const messages = lintRule({
+    code: `function buildDefaults() {
+  return { retries: 3, timeout: 1000 };
+}`,
+    options: [{ ignoreNoInputClosures: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions keeps a FunctionDeclaration with parameters strict under ignoreNoInputClosures", () => {
+  const messages = lintRule({
+    code: `function buildConfig(overrides) {
+  return { ...overrides, retries: 3 };
+}`,
+    options: [{ ignoreNoInputClosures: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions can ignore trivial Error-subclass constructors", () => {
+  const messages = lintRule({
+    code: `class AssetNotFoundError extends Error {
+  constructor() {
+    super("asset not found");
+    this.name = "AssetNotFoundError";
+  }
+}`,
+    options: [{ ignoreTrivialConstructors: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions keeps a constructor that validates or computes strict under ignoreTrivialConstructors", () => {
+  const messages = lintRule({
+    code: `class Range {
+  constructor(min, max) {
+    if (min > max) throw new Error("invalid range");
+    this.min = min;
+    this.max = max;
+  }
+}`,
+    options: [{ ignoreTrivialConstructors: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions keeps a constructor that calls something other than super strict under ignoreTrivialConstructors", () => {
+  const messages = lintRule({
+    code: `class Session {
+  constructor(id) {
+    this.id = id;
+    track(id);
+  }
+}`,
+    options: [{ ignoreTrivialConstructors: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
 });

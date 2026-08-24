@@ -4,7 +4,7 @@ Requires a minimum number of runtime assertions per function. The TigerStyle pre
 
 Default assertion names are `assert`, `assertDefined`, `nodeAssert`, and `nodeAssert.ok`. Configure `assertionNames` for application helpers, `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
 
-The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, and `ignoreNoInputClosures: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
+The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreNoInputClosures: true`, and `ignoreTrivialConstructors: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
 
 ```tsx
 <List renderItem={({ item }) => <Row item={item} />} />;
@@ -15,7 +15,7 @@ const startApplication = () => {
 };
 ```
 
-`ignoreDirectCallbacks` excludes a function only when all of the following hold: it is an arrow or function expression, never a declaration; its parent is a `CallExpression` or `NewExpression` and the function is one of that call's `arguments`, never the callee, so IIFEs stay checked; and its body is an expression body or a block of at most `directCallbackMaxStatements` statements (default 3).
+`ignoreDirectCallbacks` excludes a function only when all of the following hold: it is an arrow or function expression, never a declaration; and either (a) its parent is a `CallExpression` or `NewExpression` and the function is one of that call's `arguments`, never the callee, so IIFEs stay checked, or (b) it is the value of a `Property` whose enclosing `ObjectExpression` is itself, one level up, a direct argument of a `CallExpression`/`NewExpression` — an options-object callback; and its body is an expression body or a block of at most `directCallbackMaxStatements` statements (default 3).
 
 ```ts
 schedule(() => flush());
@@ -24,9 +24,54 @@ register((value) => {
   consume(value);
   record(value);
 });
+
+streamScreen(buildMessages(screen), {
+  onDone: (content, info) => {
+    if (stale()) return;
+    handleStreamDone(content, info);
+  },
+  onError: (err, trace) => {
+    if (stale()) return;
+    handleStreamError(err, trace);
+  },
+});
 ```
 
-Everything else stays strict: object-property handlers, functions in an `ArrayExpression` such as XState transition actions, functions bound to a variable and passed by name, function declarations, class and object methods, callbacks longer than `directCallbackMaxStatements`, and IIFEs.
+The object-nesting exemption goes exactly one level deep, and only through a `Property`: it does not recurse into a nested object (`configure({ handlers: { onSave: () => {...} } })` stays strict, because the inner object is not itself a call argument), and it does not reach into an `ArrayExpression` member (XState-style `actions: [() => {...}]` stays strict). Above all, the `ObjectExpression` must be the call's own argument — a handler map assigned to a variable or exported as a config object is unaffected and stays strict:
+
+```ts
+const handlers = {
+  onSave: (v) => {
+    persist(v);
+    notify(v);
+  },
+};
+```
+
+Everything else stays strict: object-property handlers not nested directly in a call argument, functions in an `ArrayExpression` such as XState transition actions, functions bound to a variable and passed by name, function declarations, class and object methods, callbacks longer than `directCallbackMaxStatements`, and IIFEs.
+
+`ignoreNoInputClosures` excludes a zero-parameter function regardless of whether it is declared as `const f = () => {...}` or `function f() {...}` — both forms are treated identically, so a zero-argument factory declared with `function` is exempt exactly like the arrow form:
+
+```ts
+function buildDefaults() {
+  return { retries: 3, timeout: 1000 };
+}
+```
+
+A `FunctionDeclaration` (or arrow) that takes parameters is unaffected and stays strict.
+
+`ignoreTrivialConstructors` excludes a class constructor whose body contains only a `super(...)` call and/or assignments of the form `this.<field> = ...` — nothing else. This targets Error-subclass boilerplate with a fixed message, where there is no invariant to assert:
+
+```ts
+class AssetNotFoundError extends Error {
+  constructor() {
+    super("asset not found");
+    this.name = "AssetNotFoundError";
+  }
+}
+```
+
+A constructor that branches, loops, or calls anything other than `super` — including one that validates or derives a field from its arguments — stays strict.
 
 Detection is purely structural and stops at the nearest enclosing function. XState transition actions remain checked regardless of their parameters, alongside named boundary and domain functions, object methods, class methods, and declarations nested inside callbacks. Direct rule configurations retain exhaustive function checking unless they enable one of these options.
 

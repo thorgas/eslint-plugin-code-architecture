@@ -13,25 +13,70 @@ const isFunction = (node) =>
   node.type === "FunctionExpression";
 
 const isNoInputClosure = (node) => {
-  return (
-    node.type !== "FunctionDeclaration" &&
-    node.params.length === 0 &&
-    node.parent.type === "VariableDeclarator" &&
-    node.parent.init === node
-  );
+  if (node.params.length !== 0) return false;
+  if (node.type === "FunctionDeclaration") return true;
+
+  return node.parent.type === "VariableDeclarator" && node.parent.init === node;
+};
+
+const isCallArgument = (call, node) =>
+  Boolean(call) &&
+  (call.type === "CallExpression" || call.type === "NewExpression") &&
+  call.arguments.includes(node);
+
+// One level of object nesting: a function is still a "direct" callback when
+// it is the value of a Property whose ObjectExpression is itself a direct
+// argument of the call — e.g. `stream(request, { onDone: () => {...} })`.
+// A variable-bound or exported object (handler maps, XState action arrays)
+// does not qualify: the ObjectExpression must be the call's own argument.
+const isDirectCallbackPosition = (node) => {
+  const parent = node.parent;
+  if (isCallArgument(parent, node)) return true;
+
+  if (parent.type !== "Property" || parent.value !== node) return false;
+  const objectExpression = parent.parent;
+  if (!objectExpression || objectExpression.type !== "ObjectExpression") {
+    return false;
+  }
+  return isCallArgument(objectExpression.parent, objectExpression);
 };
 
 const isDirectCallback = (node, maxStatements) => {
   if (node.type === "FunctionDeclaration") return false;
-
-  const parent = node.parent;
-  if (parent.type !== "CallExpression" && parent.type !== "NewExpression") {
-    return false;
-  }
-  if (!parent.arguments.includes(node)) return false;
+  if (!isDirectCallbackPosition(node)) return false;
 
   if (node.body.type !== "BlockStatement") return true;
   return node.body.body.length <= maxStatements;
+};
+
+const isSuperCallStatement = (statement) =>
+  statement.type === "ExpressionStatement" &&
+  statement.expression.type === "CallExpression" &&
+  statement.expression.callee.type === "Super";
+
+const isThisFieldAssignmentStatement = (statement) =>
+  statement.type === "ExpressionStatement" &&
+  statement.expression.type === "AssignmentExpression" &&
+  statement.expression.operator === "=" &&
+  statement.expression.left.type === "MemberExpression" &&
+  statement.expression.left.object.type === "ThisExpression";
+
+// A constructor whose body only forwards to `super(...)` and/or assigns
+// fields straight from `this` has no invariant left to assert — the values
+// come straight from the caller. Any branching, loop, or other call means
+// there is something to validate, so it stays strict.
+const isTrivialConstructor = (node) => {
+  const parent = node.parent;
+  if (parent.type !== "MethodDefinition" || parent.kind !== "constructor") {
+    return false;
+  }
+  if (node.body.type !== "BlockStatement") return false;
+
+  return node.body.body.every(
+    (statement) =>
+      isSuperCallStatement(statement) ||
+      isThisFieldAssignmentStatement(statement),
+  );
 };
 
 const isJSXCallback = (node) => {
@@ -67,6 +112,7 @@ const rule = {
           },
           ignoreJSXCallbacks: { type: "boolean", default: false },
           ignoreNoInputClosures: { type: "boolean", default: false },
+          ignoreTrivialConstructors: { type: "boolean", default: false },
           minimum: { type: "integer", minimum: 0, default: 2 },
           minimumStatements: { type: "integer", minimum: 0, default: 1 },
           assertionNames: {
@@ -109,6 +155,9 @@ const rule = {
         options.ignoreDirectCallbacks &&
         isDirectCallback(node, directCallbackMaxStatements)
       ) {
+        return;
+      }
+      if (options.ignoreTrivialConstructors && isTrivialConstructor(node)) {
         return;
       }
       if (

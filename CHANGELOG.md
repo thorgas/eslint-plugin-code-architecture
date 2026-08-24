@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0-alpha.1
+
+- Extend `ignoreDirectCallbacks` in `require-assertions` to exempt a callback nested exactly one level inside an options-object argument (`stream(request, { onDone: () => {...} })`), while keeping variable-bound handler maps, two-levels-deep nesting, and array-member callbacks (XState actions) strict.
+- Make `ignoreNoInputClosures` in `require-assertions` treat a zero-parameter `FunctionDeclaration` the same as the equivalent arrow form, instead of only exempting the variable-bound closure.
+- Add the opt-in `ignoreTrivialConstructors` option to `require-assertions`, exempting a class constructor whose body is only a `super(...)` call and/or `this.<field> = ...` assignments — enabled in the `tigerstyle` and `strict` presets.
+
 ## 0.5.0-alpha.0
 
 - Add the opt-in `ignoreDirectCallbacks` option (with `directCallbackMaxStatements`, default 3) to `require-assertions`, and enable it in the `tigerstyle` and `strict` presets.
