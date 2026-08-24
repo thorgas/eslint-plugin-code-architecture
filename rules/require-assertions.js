@@ -98,6 +98,24 @@ const isJSXCallback = (node) => {
   return false;
 };
 
+// A guarded throw - `if (!isValid(x)) throw new Error(...)` - fails loudly on
+// the negative path, which is exactly what an assertion does. Walking stops
+// at the nearest enclosing function (same shape as isJSXCallback) so a throw
+// belongs to the function it is written in, never an outer one. A throw
+// reached through a CatchClause is error propagation, not a precondition
+// check, and never counts even if an `if` also happens to guard it.
+const isGuardedThrow = (node) => {
+  let sawGuard = false;
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (isFunction(parent)) break;
+    if (parent.type === "CatchClause") return false;
+    if (parent.type === "IfStatement" || parent.type === "ConditionalExpression") {
+      sawGuard = true;
+    }
+  }
+  return sawGuard;
+};
+
 /**
  * The function literals a wrapper hands to the single call that forms its body:
  * `(args) => withAdmin(async (db) => {…})`, or the same with leading statements
@@ -218,6 +236,7 @@ const rule = {
             items: { type: "string" },
           },
           checkExpressionBodies: { type: "boolean", default: false },
+          countGuardedThrows: { type: "boolean", default: false },
         },
       },
     ],
@@ -280,6 +299,13 @@ const rule = {
 
         const name = calleeName(node.callee);
         if (name && assertionNames.has(name)) current.count += 1;
+      },
+      ThrowStatement(node) {
+        if (!options.countGuardedThrows) return;
+
+        const current = functionStack.at(-1);
+        if (!current) return;
+        if (isGuardedThrow(node)) current.count += 1;
       },
     };
   },

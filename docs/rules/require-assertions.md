@@ -4,7 +4,7 @@ Requires a minimum number of runtime assertions per function. The TigerStyle pre
 
 Default assertion names are `assert`, `assertDefined`, `nodeAssert`, and `nodeAssert.ok`. Configure `assertionNames` for application helpers, `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
 
-The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreJSXComponents: true`, `creditWrapperClosures: true`, `ignoreNoInputClosures: true`, and `ignoreTrivialConstructors: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
+The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreJSXComponents: true`, `creditWrapperClosures: true`, `ignoreNoInputClosures: true`, `ignoreTrivialConstructors: true`, and `countGuardedThrows: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
 
 ```tsx
 <List renderItem={({ item }) => <Row item={item} />} />;
@@ -97,6 +97,24 @@ class AssetNotFoundError extends Error {
 ```
 
 A constructor that branches, loops, or calls anything other than `super` — including one that validates or derives a field from its arguments — stays strict.
+
+`countGuardedThrows` counts a **guarded throw** toward a function's assertion density. A validator of untrusted input that already fails loudly with a descriptive error carries the same intent as an assertion — demanding a parallel `assert()` next to it would duplicate the check. A `ThrowStatement` counts as one assertion when it is conditional: it has an `IfStatement` among its ancestors within the same function, or it is the consequent/alternate of a `ConditionalExpression`:
+
+```ts
+function parseAge(input: unknown): number {
+  if (typeof input !== "string") throw new Error("age must be a string");
+  if (Number.isNaN(Number(input))) throw new Error("age must be numeric");
+  return Number(input);
+}
+```
+
+It does **not** count:
+
+- an **unconditional** `throw` at the top of a function body — a stub or a "not implemented" — because it is not a guard, it is the function's whole behaviour;
+- a `throw` inside a `catch` block — a rethrow is error propagation, not a precondition check, and stays uncounted even when an `if` also happens to wrap it;
+- a `throw` inside a nested function — the existing per-function scoping attributes it to the nearest enclosing function, never an outer one, the same way a nested `assert()` call already does.
+
+Detection stops its ancestor walk at the nearest enclosing function, the same shape `ignoreJSXCallbacks` uses to find its `JSXAttribute`. This option is opt-in and off by default outside the presets, so direct rule configurations keep treating every `throw` as inert unless they enable it.
 
 Detection is purely structural and stops at the nearest enclosing function. XState transition actions remain checked regardless of their parameters, alongside named boundary and domain functions, object methods, class methods, and declarations nested inside callbacks. Direct rule configurations retain exhaustive function checking unless they enable one of these options.
 

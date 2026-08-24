@@ -514,6 +514,100 @@ test("require-assertions still reports a wrapper whose callback does not assert"
   expect(messages).toHaveLength(2);
 });
 
+test("require-assertions counts guarded throws when countGuardedThrows is on", () => {
+  const messages = lintRule({
+    code: `function parseAge(input) {
+  if (typeof input !== "string") throw new Error("age must be a string");
+  if (Number.isNaN(Number(input))) throw new Error("age must be numeric");
+  return Number(input);
+}`,
+    options: [{ countGuardedThrows: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions still reports the same validator when countGuardedThrows is off", () => {
+  const messages = lintRule({
+    code: `function parseAge(input) {
+  if (typeof input !== "string") throw new Error("age must be a string");
+  if (Number.isNaN(Number(input))) throw new Error("age must be numeric");
+  return Number(input);
+}`,
+    options: [{ minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions does not count an unconditional throw at the top of a function", () => {
+  const messages = lintRule({
+    code: `function notImplemented() {
+  throw new Error("not implemented");
+}`,
+    options: [{ countGuardedThrows: true, minimum: 1 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions does not count a rethrow inside a catch block", () => {
+  const messages = lintRule({
+    code: `function retryOnce(run) {
+  try {
+    return run();
+  } catch (error) {
+    if (error.retryable) throw error;
+    return null;
+  }
+}`,
+    options: [{ countGuardedThrows: true, minimum: 1 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions attributes a guarded throw inside a nested callback to that callback, not the outer function", () => {
+  const messages = lintRule({
+    code: `function buildValidator() {
+  return function validate(value) {
+    if (!value) throw new Error("value required");
+    if (typeof value !== "string") throw new Error("value must be a string");
+    return value;
+  };
+}`,
+    options: [{ countGuardedThrows: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.line).toBe(1);
+});
+
+test("require-assertions combines a guarded throw with an assert to reach the minimum", () => {
+  const messages = lintRule({
+    code: `function parseAge(input) {
+  assert(typeof input === "string" || typeof input === "number", "input must be a string or number");
+  if (Number.isNaN(Number(input))) throw new Error("age must be numeric");
+  return Number(input);
+}`,
+    options: [{ countGuardedThrows: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
 test("require-assertions does not credit a callback to a function that computes on its own", () => {
   const messages = lintRule({
     code: `const summarize = (rows) => {

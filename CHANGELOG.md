@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0-alpha.4
+
+- Add the opt-in `countGuardedThrows` option to `require-assertions`: a `ThrowStatement` counts as one assertion when it is conditional - guarded by an `IfStatement` or a `ConditionalExpression` among its ancestors within the same function. This lets a validator that already fails loudly on untrusted input (`if (!isValid(x)) throw new Error(...)`) satisfy the density without a duplicate `assert()` next to it, which the rule's own docs already discourage. An unconditional throw (a stub), a rethrow inside a `catch`, and a throw inside a nested function still do not count. Enabled in the `tigerstyle` and `strict` presets.
+
 ## 0.5.0-alpha.3
 
 - Add the opt-in `creditWrapperClosures` option to `require-assertions`: when a function's body is a single call that it hands a callback - `(args) => withAdmin(async (db) => {…})`, or a block ending in `setState((current) => {…})` - assertions written inside that callback count toward the wrapper too. Without it, putting the assertion where the work is left the wrapper reporting zero forever, so the rule argued against its own best placement. A function that computes on its own and merely calls something is not a wrapper and still owes its assertions. Enabled in the `tigerstyle` and `strict` presets.
