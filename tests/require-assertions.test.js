@@ -478,3 +478,56 @@ test("require-assertions keeps a constructor that calls something other than sup
 
   expect(messages).toHaveLength(1);
 });
+
+test("require-assertions credits a wrapper's callback assertions to the wrapper", () => {
+  const messages = lintRule({
+    code: `const loadMoreThreads = async (page) => {
+  const next = await fetchPage(page);
+  setState((current) => {
+    assert(next.length >= 0, "a page never shrinks the list");
+    assert(unique(next), "a page never repeats an id");
+    return current.concat(next);
+  });
+};`,
+    options: [{ creditWrapperClosures: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions still reports a wrapper whose callback does not assert", () => {
+  const messages = lintRule({
+    code: `const loadMoreThreads = async (page) => {
+  const next = await fetchPage(page);
+  setState((current) => {
+    record(next);
+    return current.concat(next);
+  });
+};`,
+    options: [{ creditWrapperClosures: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(2);
+});
+
+test("require-assertions does not credit a callback to a function that computes on its own", () => {
+  const messages = lintRule({
+    code: `const summarize = (rows) => {
+  const total = rows.length;
+  emit(() => {
+    assert(total >= 0, "total is never negative");
+    assert(rows.length === total, "rows did not change");
+  });
+  return total;
+};`,
+    options: [{ creditWrapperClosures: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
+});

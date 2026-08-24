@@ -98,6 +98,29 @@ const isJSXCallback = (node) => {
   return false;
 };
 
+/**
+ * The function literals a wrapper hands to the single call that forms its body:
+ * `(args) => withAdmin(async (db) => {…})`, or the same with leading statements
+ * and a `return`. Exactly one call deep, and only when that call is the
+ * function's whole remaining body - a function that computes and then happens
+ * to call something is not a wrapper and owns its own assertions.
+ */
+const wrappedCallbacksOf = (node) => {
+  let call = null;
+  if (node.body.type !== "BlockStatement") {
+    call = node.body;
+  } else {
+    const last = node.body.body.at(-1);
+    if (!last) return [];
+    if (last.type === "ReturnStatement") call = last.argument;
+    else if (last.type === "ExpressionStatement") call = last.expression;
+  }
+  if (!call) return [];
+  if (call.type === "AwaitExpression") call = call.argument;
+  if (!call || call.type !== "CallExpression") return [];
+  return call.arguments.filter((argument) => isFunction(argument));
+};
+
 const isJSXValue = (node) => {
   if (!node) return false;
   if (node.type === "JSXElement" || node.type === "JSXFragment") return true;
@@ -142,6 +165,23 @@ const returnsJSX = (node) => {
   return false;
 };
 
+/** The configured shapes that carry no invariant of their own. */
+const isExempt = (node, options) => {
+  if (options.ignoreJSXCallbacks && isJSXCallback(node)) return true;
+  if (options.ignoreNoInputClosures && isNoInputClosure(node)) return true;
+  if (
+    options.ignoreDirectCallbacks &&
+    isDirectCallback(node, options.directCallbackMaxStatements ?? 3)
+  ) {
+    return true;
+  }
+  if (options.ignoreTrivialConstructors && isTrivialConstructor(node)) {
+    return true;
+  }
+  if (options.ignoreJSXComponents && returnsJSX(node)) return true;
+  return node.body.type !== "BlockStatement" && !options.checkExpressionBodies;
+};
+
 const rule = {
   meta: {
     type: "suggestion",
@@ -165,6 +205,7 @@ const rule = {
             minimum: 0,
             default: 3,
           },
+          creditWrapperClosures: { type: "boolean", default: false },
           ignoreJSXCallbacks: { type: "boolean", default: false },
           ignoreJSXComponents: { type: "boolean", default: false },
           ignoreNoInputClosures: { type: "boolean", default: false },
@@ -185,7 +226,6 @@ const rule = {
     const options = context.options[0] ?? {};
     const minimum = options.minimum ?? 2;
     const minimumStatements = options.minimumStatements ?? 1;
-    const directCallbackMaxStatements = options.directCallbackMaxStatements ?? 3;
     const assertionNames = new Set(
       options.assertionNames ?? [
         "assert",
@@ -200,29 +240,24 @@ const rule = {
       functionStack.push({ count: 0, node });
     };
 
+
     const exitFunction = () => {
       const current = functionStack.pop();
       if (!current) return;
 
       const { node } = current;
-      if (options.ignoreJSXCallbacks && isJSXCallback(node)) return;
-      if (options.ignoreNoInputClosures && isNoInputClosure(node)) return;
-      if (
-        options.ignoreDirectCallbacks &&
-        isDirectCallback(node, directCallbackMaxStatements)
-      ) {
-        return;
+      // A wrapper's own body is one call, so the assertions belong in the
+      // callback it hands that call - `(args) => withAdmin(async (db) => {…})`
+      // asserts inside the closure, where the work is. Counting per scope
+      // would leave the wrapper reporting zero forever no matter how well the
+      // closure asserts, so the closure's assertions count for it too.
+      if (options.creditWrapperClosures) {
+        const enclosing = functionStack.at(-1);
+        if (enclosing && wrappedCallbacksOf(enclosing.node).includes(node)) {
+          enclosing.count += current.count;
+        }
       }
-      if (options.ignoreTrivialConstructors && isTrivialConstructor(node)) {
-        return;
-      }
-      if (options.ignoreJSXComponents && returnsJSX(node)) return;
-      if (
-        node.body.type !== "BlockStatement" &&
-        !options.checkExpressionBodies
-      ) {
-        return;
-      }
+      if (isExempt(node, options)) return;
 
       const statementCount =
         node.body.type === "BlockStatement" ? node.body.body.length : 1;

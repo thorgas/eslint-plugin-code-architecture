@@ -92,6 +92,7 @@ const tigerstyleRules = {
   [`${namespace}/require-assertions`]: [
     "error",
     {
+      creditWrapperClosures: true,
       ignoreDirectCallbacks: true,
       ignoreJSXCallbacks: true,
       ignoreJSXComponents: true,

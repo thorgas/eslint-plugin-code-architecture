@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0-alpha.3
+
+- Add the opt-in `creditWrapperClosures` option to `require-assertions`: when a function's body is a single call that it hands a callback - `(args) => withAdmin(async (db) => {…})`, or a block ending in `setState((current) => {…})` - assertions written inside that callback count toward the wrapper too. Without it, putting the assertion where the work is left the wrapper reporting zero forever, so the rule argued against its own best placement. A function that computes on its own and merely calls something is not a wrapper and still owes its assertions. Enabled in the `tigerstyle` and `strict` presets.
+
 ## 0.5.0-alpha.2
 
 - Extend `ignoreDirectCallbacks` in `require-assertions` to exempt a callback nested exactly one level inside an options-object argument (`stream(request, { onDone: () => {...} })`), while keeping variable-bound handler maps, two-levels-deep nesting, and array-member callbacks (XState actions) strict.

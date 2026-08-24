@@ -4,7 +4,7 @@ Requires a minimum number of runtime assertions per function. The TigerStyle pre
 
 Default assertion names are `assert`, `assertDefined`, `nodeAssert`, and `nodeAssert.ok`. Configure `assertionNames` for application helpers, `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
 
-The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreJSXComponents: true`, `ignoreNoInputClosures: true`, and `ignoreTrivialConstructors: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
+The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreJSXComponents: true`, `creditWrapperClosures: true`, `ignoreNoInputClosures: true`, and `ignoreTrivialConstructors: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
 
 ```tsx
 <List renderItem={({ item }) => <Row item={item} />} />;
@@ -71,6 +71,20 @@ function TonalIcon({ name }: Props) {
 
 A function is judged by its **own** return, never by a callback's, so a data function that maps over a renderer stays strict. Hooks and helpers that return data rather than markup also stay strict — a `use*` hook can hold a genuine invariant, and this option deliberately does not reach it.
 
+`creditWrapperClosures` counts a callback's assertions toward the function that wraps it. A wrapper's own body is one call, so the assertions belong in the callback, where the work happens - and counting strictly per scope would leave the wrapper at zero however well that callback asserts:
+
+```ts
+const recordAssetPart = (householdId: string, assetId: string) =>
+  withAdmin(async (db) => {
+    assert(householdId.length > 0, "recordAssetPart requires a household");
+    assert(assetId.length > 0, "recordAssetPart requires an asset");
+    return db.query(/* … */);
+  });
+```
+
+It reaches exactly one call deep, and only when that call is the function's whole remaining body - an expression body, or the final `return`/expression statement of a block. A function that computes something itself and then happens to call a callback is not a wrapper and still owes its own assertions.
+
+
 `ignoreTrivialConstructors` excludes a class constructor whose body contains only a `super(...)` call and/or assignments of the form `this.<field> = ...` — nothing else. This targets Error-subclass boilerplate with a fixed message, where there is no invariant to assert:
 
 ```ts
@@ -90,6 +104,6 @@ Detection is purely structural and stops at the nearest enclosing function. XSta
 
 Do not reach for a config exemption to keep a function tolerant. Validators generally convert their `null`-returning paths into assertions, together with an audit of the callers that relied on the `null`. The exception is a reader of legacy on-device data, where the tolerant contract is the point: those keep it, one function at a time, with a `// eslint-disable-next-line code-architecture/require-assertions -- <reason naming the contract>` on that function, never a config exemption.
 
-Assertions inside a nested function count only toward that nested function. Assert inputs, return values, invariants, and both positive and negative space; do not add meaningless assertions to satisfy the count.
+Assertions inside a nested function count only toward that nested function, unless `creditWrapperClosures` applies to the wrapper around it. Assert inputs, return values, invariants, and both positive and negative space; do not add meaningless assertions to satisfy the count.
 
 Reference: TigerBeetle, [TigerStyle](https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md), including assertion density, paired assertions, and positive/negative space.
