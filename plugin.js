@@ -92,6 +92,7 @@ const tigerstyleRules = {
   [`${namespace}/require-assertions`]: [
     "error",
     {
+      ignoreDirectCallbacks: true,
       ignoreJSXCallbacks: true,
       ignoreNoInputClosures: true,
       minimum: 2,

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0-alpha.0
+
+- Add the opt-in `ignoreDirectCallbacks` option (with `directCallbackMaxStatements`, default 3) to `require-assertions`, and enable it in the `tigerstyle` and `strict` presets.
+- Add the `allowedBarrels` path-glob option to `no-barrel-imports` for barrels a consumer deliberately keeps.
+
 ## 0.4.0
 
 - Add five opt-in, configurable rules for design-system component adoption, token-only design properties, shared interactive contracts, dismissible transparent surfaces, and protected component identity.

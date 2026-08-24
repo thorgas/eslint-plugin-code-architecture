@@ -21,6 +21,19 @@ const isNoInputClosure = (node) => {
   );
 };
 
+const isDirectCallback = (node, maxStatements) => {
+  if (node.type === "FunctionDeclaration") return false;
+
+  const parent = node.parent;
+  if (parent.type !== "CallExpression" && parent.type !== "NewExpression") {
+    return false;
+  }
+  if (!parent.arguments.includes(node)) return false;
+
+  if (node.body.type !== "BlockStatement") return true;
+  return node.body.body.length <= maxStatements;
+};
+
 const isJSXCallback = (node) => {
   for (let parent = node.parent; parent; parent = parent.parent) {
     if (isFunction(parent)) return false;
@@ -46,6 +59,12 @@ const rule = {
         type: "object",
         additionalProperties: false,
         properties: {
+          ignoreDirectCallbacks: { type: "boolean", default: false },
+          directCallbackMaxStatements: {
+            type: "integer",
+            minimum: 0,
+            default: 3,
+          },
           ignoreJSXCallbacks: { type: "boolean", default: false },
           ignoreNoInputClosures: { type: "boolean", default: false },
           minimum: { type: "integer", minimum: 0, default: 2 },
@@ -64,6 +83,7 @@ const rule = {
     const options = context.options[0] ?? {};
     const minimum = options.minimum ?? 2;
     const minimumStatements = options.minimumStatements ?? 1;
+    const directCallbackMaxStatements = options.directCallbackMaxStatements ?? 3;
     const assertionNames = new Set(
       options.assertionNames ?? [
         "assert",
@@ -85,6 +105,12 @@ const rule = {
       const { node } = current;
       if (options.ignoreJSXCallbacks && isJSXCallback(node)) return;
       if (options.ignoreNoInputClosures && isNoInputClosure(node)) return;
+      if (
+        options.ignoreDirectCallbacks &&
+        isDirectCallback(node, directCallbackMaxStatements)
+      ) {
+        return;
+      }
       if (
         node.body.type !== "BlockStatement" &&
         !options.checkExpressionBodies

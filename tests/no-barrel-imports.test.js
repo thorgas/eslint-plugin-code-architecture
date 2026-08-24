@@ -26,3 +26,16 @@ test("no-barrel-imports rejects local index imports and re-exports", () => {
     true,
   );
 });
+
+test("no-barrel-imports exempts imports resolving to an allowed barrel", () => {
+  const messages = lintRule({
+    code: 'import a from "./legacy/index.js"; import b from "./feature/index.js";',
+    filename: "src/example.ts",
+    options: [{ allowedBarrels: ["src/legacy/**"] }],
+    rule,
+    ruleName: "no-barrel-imports",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("localBarrel");
+});

@@ -53,6 +53,7 @@ test("require-assertions keeps parameterized XState actions strict", () => {
 });`,
     options: [
       {
+        ignoreDirectCallbacks: true,
         ignoreJSXCallbacks: true,
         ignoreNoInputClosures: true,
         minimum: 2,
@@ -180,4 +181,86 @@ test("require-assertions preserves exhaustive callback checking by default", () 
   });
 
   expect(messages).toHaveLength(1);
+});
+
+test("require-assertions can ignore short direct call callbacks", () => {
+  const messages = lintRule({
+    code: `register((value) => {
+  consume(value);
+  record(value);
+});
+schedule(() => flush());
+observe(new Watcher(() => track()));`,
+    options: [{ ignoreDirectCallbacks: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions keeps long direct callbacks and non-argument functions strict", () => {
+  const messages = lintRule({
+    code: `register((value) => {
+  const first = value.a;
+  const second = value.b;
+  consume(first);
+  record(second);
+});
+
+(function () {
+  startServices();
+  connectObservers();
+})();
+
+handlers.onSave = function (value) {
+  persist(value);
+  notify(value);
+};
+
+register({
+  onSave(value) {
+    persist(value);
+    notify(value);
+  },
+});
+
+const bound = (value) => {
+  persist(value);
+  notify(value);
+};
+register(bound);
+
+function declared(value) {
+  persist(value);
+  notify(value);
+}`,
+    options: [{ ignoreDirectCallbacks: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(6);
+});
+
+test("require-assertions honors directCallbackMaxStatements", () => {
+  const messages = lintRule({
+    code: `register((value) => {
+  const first = value.a;
+  const second = value.b;
+  consume(first);
+  record(second);
+});`,
+    options: [
+      {
+        directCallbackMaxStatements: 4,
+        ignoreDirectCallbacks: true,
+        minimum: 2,
+      },
+    ],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
 });
