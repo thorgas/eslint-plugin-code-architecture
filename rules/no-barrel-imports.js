@@ -10,11 +10,13 @@ const resolveImport = (filename, source) => {
   );
 };
 
+// Matched against both the resolved path and the raw specifier, so a package
+// barrel can be allowed by its own name ("@scope/core") as well as by path.
 const isAllowedBarrel = (allowedBarrels, resolved, source) =>
   allowedBarrels.some(
     (pattern) =>
-      minimatch(resolved, pattern, { dot: true }) ||
-      minimatch(source, pattern, { dot: true }),
+      minimatch(resolved, pattern, { dot: true, matchBase: false }) ||
+      minimatch(source, pattern, { dot: true, matchBase: false }),
   );
 
 const isIndexImport = (source) =>
