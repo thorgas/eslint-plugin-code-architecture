@@ -222,6 +222,7 @@ Design-system adoption rules are also opt-in. Activate a rule only after the mat
 | [`no-design-identity-overrides`](docs/rules/no-design-identity-overrides.md) | Preserve component identity while permitting layout overrides | Configure |
 | [`no-raw-design-properties`](docs/rules/no-raw-design-properties.md) | Reject any static literal in configured design properties | Configure |
 | [`no-raw-design-values`](docs/rules/no-raw-design-values.md) | Require configured values to use semantic tokens in configured properties | Configure |
+| [`no-unasserted-return`](docs/rules/no-unasserted-return.md) | Disallow returning a call's result from an assertion-free function | Configure |
 | [`no-unsafe-type-assertions`](docs/rules/no-unsafe-type-assertions.md) | Ban casts and non-null assertions | `recommended` |
 | [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Require runtime validation around JSON parsing | `recommended` |
 | [`prefer-design-system-components`](docs/rules/prefer-design-system-components.md) | Replace configured platform primitives in consumer paths | Configure |

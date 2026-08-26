@@ -11,6 +11,7 @@ import noDesignIdentityOverrides from "./rules/no-design-identity-overrides.js";
 import noRawDesignProperties from "./rules/no-raw-design-properties.js";
 import noRawDesignValues from "./rules/no-raw-design-values.js";
 import noRootOwnedCompoundParts from "./rules/no-root-owned-compound-parts.js";
+import noUnassertedReturn from "./rules/no-unasserted-return.js";
 import noUnsafeTypeAssertions from "./rules/no-unsafe-type-assertions.js";
 import noUnvalidatedJsonParse from "./rules/no-unvalidated-json-parse.js";
 import preferCompositionOverConfiguration from "./rules/prefer-composition-over-configuration.js";
@@ -46,6 +47,7 @@ const plugin = {
     "no-raw-design-properties": noRawDesignProperties,
     "no-raw-design-values": noRawDesignValues,
     "no-root-owned-compound-parts": noRootOwnedCompoundParts,
+    "no-unasserted-return": noUnassertedReturn,
     "no-unsafe-type-assertions": noUnsafeTypeAssertions,
     "no-unvalidated-json-parse": noUnvalidatedJsonParse,
     "prefer-composition-over-configuration":

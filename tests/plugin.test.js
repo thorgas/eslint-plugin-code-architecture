@@ -5,7 +5,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
   expect(plugin.meta).toEqual({
     name: "eslint-plugin-code-architecture",
     namespace: "code-architecture",
-    version: "0.5.0-alpha.5",
+    version: "0.5.0-alpha.6",
   });
   expect(Object.keys(plugin.rules).sort()).toEqual([
     "centralize-domain-literals",
@@ -21,6 +21,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "no-raw-design-properties",
     "no-raw-design-values",
     "no-root-owned-compound-parts",
+    "no-unasserted-return",
     "no-unsafe-type-assertions",
     "no-unvalidated-json-parse",
     "prefer-composition-over-configuration",

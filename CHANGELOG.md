@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0-alpha.6
+
+- Add the `no-unasserted-return` rule: in a function that contains no assertion, `return f(...)` and `return await f(...)` are reported with the fix of binding the result to a local, asserting its shape, and returning it - the assign-assert-return discipline. A function with any assertion is left alone, and `ignoreDelegates` (default true) exempts single-statement wrappers whose named callee carries the invariants. Excluded from every preset; adopt at `warn` first to measure.
+
 ## 0.5.0-alpha.5
 
 - Add the opt-in `ignoreReactHooks` option to `require-assertions`, exempting custom hooks named with React's `use` + capital-letter-or-digit convention while continuing to check nested helpers and callbacks independently. Enabled in the `tigerstyle` and `strict` presets.
