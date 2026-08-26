@@ -134,6 +134,17 @@ Detection stops its ancestor walk at the nearest enclosing function, the same sh
 
 Detection is purely structural and stops at the nearest enclosing function. XState transition actions remain checked regardless of their parameters, alongside named boundary and domain functions, object methods, class methods, and declarations nested inside callbacks. Direct rule configurations retain exhaustive function checking unless they enable one of these options.
 
+## Shape assertions
+
+The cheapest honest assertion is usually about **shape**: the property of a value that must hold for the next line to make sense, checkable without knowing the value itself. Reach for these before concluding a function has nothing to assert:
+
+- a module singleton the function calls into - `assert(typeof router.back === "function", "...")`;
+- an id or token whose emptiness would make the call downstream meaningless - `assert(token.length > 2, "...")`;
+- a state field used arithmetically or as a flag - `assert(Number.isFinite(state.consecutiveFailures) && state.consecutiveFailures >= 0, "...")`, `assert(typeof state.started === "boolean", "...")`;
+- callbacks a context object promises - `assert(typeof ctx.setError === "function" && typeof ctx.setIntent === "function", "...")`.
+
+A thin delegate whose parameter has a checkable shape asserts that shape even when the named callee owns the deeper invariants - the delegate is the last place the value is seen before it crosses into code that trusts it.
+
 ## Tolerant readers
 
 Do not reach for a config exemption to keep a function tolerant. Validators generally convert their `null`-returning paths into assertions, together with an audit of the callers that relied on the `null`. The exception is a reader of legacy on-device data, where the tolerant contract is the point: those keep it, one function at a time, with a `// eslint-disable-next-line code-architecture/require-assertions -- <reason naming the contract>` on that function, never a config exemption.
