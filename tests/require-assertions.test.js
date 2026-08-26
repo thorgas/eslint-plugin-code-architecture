@@ -363,16 +363,24 @@ function MaybeRow({ row }) {
   expect(messages).toHaveLength(0);
 });
 
-test("require-assertions keeps hooks and helpers strict under ignoreJSXComponents", () => {
+test("require-assertions can ignore React hooks while keeping helpers strict", () => {
   const messages = lintRule({
     code: `function useRowModel(rows) {
-  const total = rows.length;
-  return { rows, total };
+  function summarize(values) {
+    const total = values.length;
+    return { values, total };
+  }
+  return summarize(rows);
 }
 
-function niceMax(values) {
-  const highest = Math.max(...values);
-  return Math.ceil(highest / 10) * 10;
+const useAuthScreenFields = (session) => {
+  const email = session.email;
+  return { email };
+};
+
+function usefulValue(values) {
+  const total = values.length;
+  return { values, total };
 }
 
 function RowList({ rows }) {
@@ -380,12 +388,29 @@ function RowList({ rows }) {
   return <List data={model.rows} />;
 }`,
     filename: "src/screen.tsx",
-    options: [{ ignoreJSXComponents: true, minimum: 2 }],
+    options: [
+      { ignoreJSXComponents: true, ignoreReactHooks: true, minimum: 2 },
+    ],
     rule,
     ruleName: "require-assertions",
   });
 
   expect(messages).toHaveLength(2);
+  expect(messages.map((message) => message.line)).toEqual([2, 14]);
+});
+
+test("require-assertions keeps React hooks strict by default", () => {
+  const messages = lintRule({
+    code: `function useAuthScreenFields(session) {
+  const email = session.email;
+  return { email };
+}`,
+    options: [{ minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(1);
 });
 
 test("require-assertions judges a component by its own return, not a callback's", () => {

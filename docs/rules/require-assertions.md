@@ -4,7 +4,7 @@ Requires a minimum number of runtime assertions per function. The TigerStyle pre
 
 Default assertion names are `assert`, `assertDefined`, `nodeAssert`, and `nodeAssert.ok`. Configure `assertionNames` for application helpers, `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
 
-The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreJSXComponents: true`, `creditWrapperClosures: true`, `ignoreNoInputClosures: true`, `ignoreTrivialConstructors: true`, and `countGuardedThrows: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
+The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreJSXComponents: true`, `ignoreReactHooks: true`, `creditWrapperClosures: true`, `ignoreNoInputClosures: true`, `ignoreTrivialConstructors: true`, and `countGuardedThrows: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
 
 ```tsx
 <List renderItem={({ item }) => <Row item={item} />} />;
@@ -69,7 +69,23 @@ function TonalIcon({ name }: Props) {
 }
 ```
 
-A function is judged by its **own** return, never by a callback's, so a data function that maps over a renderer stays strict. Hooks and helpers that return data rather than markup also stay strict — a `use*` hook can hold a genuine invariant, and this option deliberately does not reach it.
+A function is judged by its **own** return, never by a callback's, so a data function that maps over a renderer stays strict.
+
+`ignoreReactHooks` excludes function declarations and variable-bound function expressions whose names follow React's `use` + capital-letter-or-digit convention, such as `useAuthScreenFields`. A hook coordinates React state and other hooks, so requiring assertion density in the hook itself usually creates noise. The exemption applies only to the hook function: nested helpers and callbacks are still checked independently under the rule's other options.
+
+```ts
+function useAuthScreenFields(session: Session) {
+  function normalizeEmail(email: string) {
+    assert(email.length > 0);
+    assert(email === email.trim());
+    return email.toLowerCase();
+  }
+
+  return { email: normalizeEmail(session.email) };
+}
+```
+
+Names such as `usefulValue` do not qualify, and direct rule configurations remain exhaustive unless they enable `ignoreReactHooks`.
 
 `creditWrapperClosures` counts a callback's assertions toward the function that wraps it. A wrapper's own body is one call, so the assertions belong in the callback, where the work happens - and counting strictly per scope would leave the wrapper at zero however well that callback asserts:
 

@@ -12,6 +12,20 @@ const isFunction = (node) =>
   node.type === "FunctionDeclaration" ||
   node.type === "FunctionExpression";
 
+const functionName = (node) => {
+  if (
+    node.parent?.type === "VariableDeclarator" &&
+    node.parent.init === node &&
+    node.parent.id.type === "Identifier"
+  ) {
+    return node.parent.id.name;
+  }
+  if (node.id?.type === "Identifier") return node.id.name;
+  return undefined;
+};
+
+const isReactHook = (node) => /^use[A-Z0-9]/.test(functionName(node) ?? "");
+
 // A zero-parameter `function foo() { return {...}; }` factory is the same shape
 // as the `const foo = () => ({...})` form this option already exempts, so the
 // declaration syntax alone should not decide it. It is limited to a lone return
@@ -187,6 +201,7 @@ const returnsJSX = (node) => {
 const isExempt = (node, options) => {
   if (options.ignoreJSXCallbacks && isJSXCallback(node)) return true;
   if (options.ignoreNoInputClosures && isNoInputClosure(node)) return true;
+  if (options.ignoreReactHooks && isReactHook(node)) return true;
   if (
     options.ignoreDirectCallbacks &&
     isDirectCallback(node, options.directCallbackMaxStatements ?? 3)
@@ -227,6 +242,7 @@ const rule = {
           ignoreJSXCallbacks: { type: "boolean", default: false },
           ignoreJSXComponents: { type: "boolean", default: false },
           ignoreNoInputClosures: { type: "boolean", default: false },
+          ignoreReactHooks: { type: "boolean", default: false },
           ignoreTrivialConstructors: { type: "boolean", default: false },
           minimum: { type: "integer", minimum: 0, default: 2 },
           minimumStatements: { type: "integer", minimum: 0, default: 1 },

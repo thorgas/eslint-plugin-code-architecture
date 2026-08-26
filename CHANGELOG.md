@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0-alpha.5
+
+- Add the opt-in `ignoreReactHooks` option to `require-assertions`, exempting custom hooks named with React's `use` + capital-letter-or-digit convention while continuing to check nested helpers and callbacks independently. Enabled in the `tigerstyle` and `strict` presets.
+
 ## 0.5.0-alpha.4
 
 - Add the opt-in `countGuardedThrows` option to `require-assertions`: a `ThrowStatement` counts as one assertion when it is conditional - guarded by an `IfStatement` or a `ConditionalExpression` among its ancestors within the same function. This lets a validator that already fails loudly on untrusted input (`if (!isValid(x)) throw new Error(...)`) satisfy the density without a duplicate `assert()` next to it, which the rule's own docs already discourage. An unconditional throw (a stub), a rethrow inside a `catch`, and a throw inside a nested function still do not count. Enabled in the `tigerstyle` and `strict` presets.

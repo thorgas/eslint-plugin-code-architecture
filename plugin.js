@@ -98,6 +98,7 @@ const tigerstyleRules = {
       ignoreJSXCallbacks: true,
       ignoreJSXComponents: true,
       ignoreNoInputClosures: true,
+      ignoreReactHooks: true,
       ignoreTrivialConstructors: true,
       minimum: 2,
     },
