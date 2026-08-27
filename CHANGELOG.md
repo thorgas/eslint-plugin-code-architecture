@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- Expand `require-assertions` with narrowly configurable exemptions for short direct callbacks, JSX components, React hooks, trivial constructors, and return-only factories; credit assertions inside thin wrapper closures; and optionally count guarded throws.
+- Add the opt-in `no-unasserted-return` rule for assign-assert-return discipline, including strict checking for expression-bodied and unnamed delegates when configured.
+- Add `allowedBarrels` to `no-barrel-imports` for explicitly approved relative and package barrels.
+
 ## 0.5.0-alpha.6
 
 - Add the `no-unasserted-return` rule: in a function that contains no assertion, `return f(...)` and `return await f(...)` are reported with the fix of binding the result to a local, asserting its shape, and returning it - the assign-assert-return discipline. A function with any assertion is left alone, and `ignoreDelegates` (default true) exempts single-statement wrappers whose named callee carries the invariants. Excluded from every preset; adopt at `warn` first to measure.
