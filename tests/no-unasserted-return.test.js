@@ -83,11 +83,26 @@ test("no-unasserted-return leaves single-statement delegates alone by default", 
 test("no-unasserted-return checks delegates when ignoreDelegates is off", () => {
   const messages = lintRule({
     code: `
+      const loadProfile = (id) => fetchJson(buildUrl(id));
       function loadAccount(id) {
         return fetchJson(buildUrl(id));
       }
     `,
     options: [{ ignoreDelegates: false }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(2);
+});
+
+test("no-unasserted-return only exempts delegates with a named callee", () => {
+  const messages = lintRule({
+    code: `
+      function dispatch(handler, value) {
+        return handler[value.kind](value);
+      }
+    `,
     rule,
     ruleName: "no-unasserted-return",
   });

@@ -10,18 +10,26 @@ const calleeName = (node) => {
 // `return f(...)` and `return await f(...)` are the shapes that smuggle an
 // unexamined value out of a function. A returned identifier, literal, or
 // object built in place has already been through the function's own hands.
-const returnedCall = (statement) => {
-  const argument = statement.argument;
-  if (!argument) return undefined;
-  if (argument.type === "CallExpression") return argument;
+const callExpressionOf = (node) => {
+  if (!node) return undefined;
+  if (node.type === "CallExpression") return node;
   if (
-    argument.type === "AwaitExpression" &&
-    argument.argument.type === "CallExpression"
+    node.type === "AwaitExpression" &&
+    node.argument.type === "CallExpression"
   ) {
-    return argument.argument;
+    return node.argument;
   }
   return undefined;
 };
+
+const returnedCall = (statement) => callExpressionOf(statement.argument);
+
+const reportUnassertedReturn = (context, node, call) =>
+  context.report({
+    node,
+    messageId: "unassertedReturn",
+    data: { callee: calleeName(call.callee) ?? "the call" },
+  });
 
 /**
  * Requires a function that returns a call's result directly to either hold an
@@ -74,20 +82,26 @@ export default {
       if (current.assertions > 0) return;
 
       const body = current.node.body;
+      if (body.type !== "BlockStatement") {
+        const call = callExpressionOf(body);
+        if (!call) return;
+        const callee = calleeName(call.callee);
+        if (ignoreDelegates && callee) return;
+        reportUnassertedReturn(context, body, call);
+        return;
+      }
+
       // A delegate's whole body is the one return: it computes nothing of its
       // own, so the named callee carries the invariants and the wrapper has
       // nothing true to assert. `{ return f(x); }` and `=> f(x)` both qualify.
-      const isDelegate =
-        body.type !== "BlockStatement" || body.body.length === 1;
+      const delegateCall =
+        body.body.length === 1 ? returnedCall(body.body[0]) : undefined;
+      const isDelegate = delegateCall && calleeName(delegateCall.callee);
       if (ignoreDelegates && isDelegate) return;
 
       for (const statement of current.returns) {
         const call = returnedCall(statement);
-        context.report({
-          node: statement,
-          messageId: "unassertedReturn",
-          data: { callee: calleeName(call.callee) ?? "the call" },
-        });
+        reportUnassertedReturn(context, statement, call);
       }
     };
 
