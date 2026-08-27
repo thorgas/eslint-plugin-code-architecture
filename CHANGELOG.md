@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.5.0
+
+- Expand `require-assertions` with narrowly configurable exemptions for short direct callbacks, JSX components, React hooks, trivial constructors, and return-only factories; credit assertions inside thin wrapper closures; and optionally count guarded throws.
+- Add the opt-in `no-unasserted-return` rule for assign-assert-return discipline, including strict checking for expression-bodied and unnamed delegates when configured.
+- Add `allowedBarrels` to `no-barrel-imports` for explicitly approved relative and package barrels.
+
+## 0.5.0-alpha.6
+
+- Add the `no-unasserted-return` rule: in a function that contains no assertion, `return f(...)` and `return await f(...)` are reported with the fix of binding the result to a local, asserting its shape, and returning it - the assign-assert-return discipline. A function with any assertion is left alone, and `ignoreDelegates` (default true) exempts single-statement wrappers whose named callee carries the invariants. Excluded from every preset; adopt at `warn` first to measure.
+
+## 0.5.0-alpha.5
+
+- Add the opt-in `ignoreReactHooks` option to `require-assertions`, exempting custom hooks named with React's `use` + capital-letter-or-digit convention while continuing to check nested helpers and callbacks independently. Enabled in the `tigerstyle` and `strict` presets.
+
+## 0.5.0-alpha.4
+
+- Add the opt-in `countGuardedThrows` option to `require-assertions`: a `ThrowStatement` counts as one assertion when it is conditional - guarded by an `IfStatement` or a `ConditionalExpression` among its ancestors within the same function. This lets a validator that already fails loudly on untrusted input (`if (!isValid(x)) throw new Error(...)`) satisfy the density without a duplicate `assert()` next to it, which the rule's own docs already discourage. An unconditional throw (a stub), a rethrow inside a `catch`, and a throw inside a nested function still do not count. Enabled in the `tigerstyle` and `strict` presets.
+
+## 0.5.0-alpha.3
+
+- Add the opt-in `creditWrapperClosures` option to `require-assertions`: when a function's body is a single call that it hands a callback - `(args) => withAdmin(async (db) => {…})`, or a block ending in `setState((current) => {…})` - assertions written inside that callback count toward the wrapper too. Without it, putting the assertion where the work is left the wrapper reporting zero forever, so the rule argued against its own best placement. A function that computes on its own and merely calls something is not a wrapper and still owes its assertions. Enabled in the `tigerstyle` and `strict` presets.
+
+## 0.5.0-alpha.2
+
+- Extend `ignoreDirectCallbacks` in `require-assertions` to exempt a callback nested exactly one level inside an options-object argument (`stream(request, { onDone: () => {...} })`), while keeping variable-bound handler maps, two-levels-deep nesting, and array-member callbacks (XState actions) strict.
+- Make `ignoreNoInputClosures` in `require-assertions` treat a zero-parameter `FunctionDeclaration` that only returns a value the same as the equivalent arrow form. A zero-parameter declaration that performs work still owes the postcondition that its work landed, and stays strict.
+- Add the opt-in `ignoreJSXComponents` option to `require-assertions`, exempting a function that returns JSX — its preconditions are the typed props contract, and it renders rather than computes. Hooks and helpers that return data stay strict, and a component is judged by its own return rather than by a callback's. Enabled in the `tigerstyle` and `strict` presets, mirroring the existing `ignoreJSX` on `max-function-lines`.
+- Add the opt-in `ignoreTrivialConstructors` option to `require-assertions`, exempting a class constructor whose body is only a `super(...)` call and/or `this.<field> = ...` assignments — enabled in the `tigerstyle` and `strict` presets.
+
+## 0.5.0-alpha.0
+
+- Add the opt-in `ignoreDirectCallbacks` option (with `directCallbackMaxStatements`, default 3) to `require-assertions`, and enable it in the `tigerstyle` and `strict` presets.
+- Add the `allowedBarrels` path-glob option to `no-barrel-imports` for barrels a consumer deliberately keeps.
+
 ## 0.4.0
 
 - Add five opt-in, configurable rules for design-system component adoption, token-only design properties, shared interactive contracts, dismissible transparent surfaces, and protected component identity.

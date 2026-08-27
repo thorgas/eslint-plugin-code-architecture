@@ -26,3 +26,45 @@ test("no-barrel-imports rejects local index imports and re-exports", () => {
     true,
   );
 });
+
+test("no-barrel-imports exempts imports resolving to an allowed barrel", () => {
+  const messages = lintRule({
+    code: 'import a from "./legacy/index.js"; import b from "./feature/index.js";',
+    filename: "src/example.ts",
+    options: [{ allowedBarrels: ["src/legacy/**"] }],
+    rule,
+    ruleName: "no-barrel-imports",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("localBarrel");
+});
+
+test("no-barrel-imports exempts an allowed package barrel by specifier", () => {
+  const messages = lintRule({
+    code: 'import { plan } from "@scope/core"; import { other } from "@scope/legacy";',
+    options: [
+      {
+        allowedBarrels: ["@scope/core"],
+        packages: ["@scope/core", "@scope/legacy"],
+      },
+    ],
+    rule,
+    ruleName: "no-barrel-imports",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("packageBarrel");
+});
+
+test("no-barrel-imports matches allowed barrels with globstar patterns", () => {
+  const messages = lintRule({
+    code: 'import a from "./index.js"; import b from "./nested/deep/index.js";',
+    filename: "packages/core/src/example.ts",
+    options: [{ allowedBarrels: ["**/index.js"] }],
+    rule,
+    ruleName: "no-barrel-imports",
+  });
+
+  expect(messages).toHaveLength(0);
+});
