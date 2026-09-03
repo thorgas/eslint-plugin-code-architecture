@@ -23,3 +23,14 @@ interface Example {
 This is a syntax rule; it does not require Evolu's `readonly` runtime helper or inspect inferred types.
 
 Reference: Evolu, [Conventions: Immutability](https://www.evolu.dev/docs/conventions).
+
+## Production-derived example
+
+This redacted private-backend document makes both the property and its collection immutable at the contract boundary.
+
+```ts
+export interface ProfilesDocument {
+  readonly schemaVersion: 1;
+  readonly profiles: ReadonlyArray<Profile>;
+}
+```

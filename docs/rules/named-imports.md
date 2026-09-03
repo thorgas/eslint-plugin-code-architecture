@@ -17,3 +17,15 @@ import "./setup.js";
 ```
 
 Reference: Evolu, [Conventions: Named imports](https://www.evolu.dev/docs/conventions).
+
+## Production-derived example
+
+This redacted private-backend module names each validation capability at the import boundary.
+
+```ts
+import {
+  isUnknownRecord,
+  readFiniteNumber,
+  readString,
+} from "../shared/validation.js";
+```

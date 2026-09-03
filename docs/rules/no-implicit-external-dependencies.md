@@ -72,3 +72,15 @@ Use `capabilities` to replace the default global capability list:
 Selectors support one global object and either an exact member or `*`. The rule uses ESLint scope information to distinguish globals from local bindings. It deliberately does not guess whether arbitrary calls such as `repository.save()` are external; configure the imported service locator instead.
 
 Reference: Evolu, [Dependency Injection](https://www.evolu.dev/docs/dependency-injection), especially its distinction between local arguments and external interactions such as time, logging, and databases.
+
+## Production-derived example
+
+This redacted private-backend workflow routes logging and model access through dependencies, making both replaceable in tests.
+
+```ts
+export const generateDocument = async (deps: ModelDeps, prompt: Prompt) => {
+  const result = await deps.modelGateway.generate(prompt.text);
+  deps.logger.warn(`Model returned ${result.tag}`);
+  return result;
+};
+```

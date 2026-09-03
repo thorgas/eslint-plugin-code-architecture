@@ -25,3 +25,17 @@ interface TimeDep {
 This syntax-only rule recognizes interface declarations and object type aliases whose names end in `Dep`.
 
 Reference: Evolu, [Dependency Injection](https://www.evolu.dev/docs/dependency-injection), especially “To avoid clashes, wrap dependencies (`TimeDep`, `LoggerDep`).”
+
+## Production-derived example
+
+This redacted excerpt comes from a private production backend. The wrapper prevents its `clock` property from colliding when dependency contracts are combined.
+
+```ts
+export interface Clock {
+  readonly now: () => Date;
+}
+
+export interface ClockDep {
+  readonly clock: Clock;
+}
+```

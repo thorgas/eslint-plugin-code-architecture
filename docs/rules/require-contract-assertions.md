@@ -63,3 +63,16 @@ Direct computed returns are reported because there is no stable returned binding
 Assertions inside a nested function apply only to that nested function.
 
 Reference: TigerBeetle, [TigerStyle](https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md), especially “Assert all function arguments and return values” and the distinction between types checking structure and assertions checking logic and state.
+
+## Production-derived example
+
+This redacted private-backend helper checks the input capability and the computed result instead of relying on TypeScript alone.
+
+```ts
+export const loadProfile = async (deps: StoreDep, id: string): Promise<Profile> => {
+  assert(id.length > 0, "profile id must not be empty");
+  const profile = await deps.store.load(id);
+  assert(profile.id === id, "store must return the requested profile");
+  return profile;
+};
+```

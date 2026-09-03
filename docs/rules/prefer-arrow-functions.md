@@ -17,3 +17,14 @@ export const createUser = (data: UserData): User => ({ data });
 ```
 
 Reference: Evolu, [Conventions: Arrow functions](https://www.evolu.dev/docs/conventions).
+
+## Production-derived example
+
+This redacted private-backend parser uses an arrow export so function declarations have one consistent, searchable shape.
+
+```ts
+export const parseQuantity = (input: string): Decimal | null => {
+  const normalized = input.trim();
+  return normalized.length === 0 ? null : Decimal.parse(normalized);
+};
+```

@@ -22,3 +22,16 @@ const logger = createLogger();
 Direct exports and same-file named re-exports are checked. Matching is deliberately narrow: `logger` matches `createLogger()` and `time` matches `new Time()`.
 
 Reference: Evolu, [Dependency Injection guidelines](https://www.evolu.dev/docs/dependency-injection), “Never create a global instance.”
+
+## Production-derived example
+
+This redacted private-backend composition root creates concrete services locally and returns only the assembled dependency contract.
+
+```ts
+export const createAppDeps = (): AppDeps => {
+  const logger = createNodeLogger();
+  const clock = createNodeClock();
+  const repository = createRepository({ logger });
+  return { clock, logger, repository };
+};
+```
