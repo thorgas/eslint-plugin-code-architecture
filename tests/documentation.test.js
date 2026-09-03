@@ -5,10 +5,10 @@ import plugin from "../plugin.js";
 
 test("every exported rule documents a production-derived code example", async () => {
   for (const ruleName of Object.keys(plugin.rules)) {
-    const rulePage = await readFile(
+    const rulePage = (await readFile(
       new URL(`../docs/rules/${ruleName}.md`, import.meta.url),
       "utf8",
-    );
+    )).replaceAll("\r\n", "\n");
     const productionExample = rulePage.split(
       "## Production-derived example\n",
     )[1];
