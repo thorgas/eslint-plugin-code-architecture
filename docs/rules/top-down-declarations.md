@@ -34,11 +34,13 @@ const createBar = (): Bar => ({ value: "bar" });
 
 Imports and executable statements are outside this rule's declaration ordering. Use `imports-first` separately when needed.
 
+`preserveRuntimeDependencies` defaults to `true`. When moving a declaration upward would place it before an earlier runtime value it references, the rule does not report the order: readability must not introduce temporal-dead-zone or initialization changes. Set it to `false` only when another tool validates module initialization. `allowedFiles` accepts minimatch patterns for generated or framework-owned module layouts.
+
 Reference: Evolu, [Conventions: Order (top-down readability)](https://www.evolu.dev/docs/conventions).
 
 ## Production-derived example
 
-This redacted private-backend module presents its public vocabulary and contracts before private validation details.
+This redacted production module presents its public vocabulary and contracts before private validation details.
 
 ```ts
 export type ProfileKind = "adult" | "child";

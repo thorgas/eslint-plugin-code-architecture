@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0-alpha.2
+
+- Add package/path exemptions to `named-imports` for APIs that require default or namespace imports.
+- Fix `prefer-readonly-types` to recommend the built-in `Readonly<Record<K, V>>` shape and add contract-only collection enforcement for intentionally mutable implementation state.
+- Add narrow framework, export, generator, hoisting, recursion, name, and file exemptions to `prefer-arrow-functions`.
+- Make `top-down-declarations` preserve runtime initialization dependencies by default and support generated/framework file exemptions.
+- Make `no-unasserted-return` evaluate each returned call independently, inspect conditional and logical return paths, and reuse production function eligibility options.
+
 ## 0.6.0-alpha.1
 
 - Add shared production eligibility options to `require-contract-assertions` for callbacks, JSX, hooks, no-input closures, trivial constructors, delegates, statement thresholds, and assertion-helper implementations while keeping `agentReadiness` exhaustive.

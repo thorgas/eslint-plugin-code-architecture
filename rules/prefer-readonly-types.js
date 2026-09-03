@@ -1,7 +1,7 @@
 const readonlyCollectionNames = new Map([
   ["Array", "ReadonlyArray"],
   ["Map", "ReadonlyMap"],
-  ["Record", "ReadonlyRecord"],
+  ["Record", "Readonly<Record<K, V>>"],
   ["Set", "ReadonlySet"],
 ]);
 
@@ -19,11 +19,40 @@ const rule = {
         "Use {{readonlyName}} instead of mutable {{name}}.",
       readonlyProperty: "Prefix interface property '{{name}}' with readonly.",
     },
-    schema: [],
+    schema: [
+      {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          collectionScope: {
+            enum: ["all", "contracts"],
+            default: "all",
+          },
+        },
+      },
+    ],
   },
   create(context) {
+    const collectionScope = context.options[0]?.collectionScope ?? "all";
+    const isContractType = (node) => {
+      if (collectionScope === "all") return true;
+      for (let current = node.parent; current; current = current.parent) {
+        if (
+          current.type === "TSInterfaceDeclaration" ||
+          current.type === "TSTypeAliasDeclaration"
+        ) return true;
+        if (
+          current.type === "VariableDeclarator" ||
+          current.type === "FunctionDeclaration" ||
+          current.type === "FunctionExpression" ||
+          current.type === "ArrowFunctionExpression"
+        ) return false;
+      }
+      return false;
+    };
     return {
       TSArrayType(node) {
+        if (!isContractType(node)) return;
         context.report({ messageId: "readonlyArray", node });
       },
       TSInterfaceDeclaration(node) {
@@ -43,6 +72,7 @@ const rule = {
         }
       },
       TSTypeReference(node) {
+        if (!isContractType(node)) return;
         if (node.typeName.type !== "Identifier") return;
         const readonlyName = readonlyCollectionNames.get(node.typeName.name);
         if (!readonlyName) return;

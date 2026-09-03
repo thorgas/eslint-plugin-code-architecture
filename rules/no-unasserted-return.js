@@ -1,8 +1,17 @@
-const calleeName = (node) => {
+import {
+  functionName,
+  isFunctionExempt,
+} from "./require-assertions.js";
+import {
+  assertionNameSet,
+  isAssertionCall,
+} from "./assertion-helpers.js";
+
+const displayCalleeName = (node) => {
   if (node.type === "Identifier") return node.name;
   if (node.type !== "MemberExpression" || node.computed) return undefined;
 
-  const objectName = calleeName(node.object);
+  const objectName = displayCalleeName(node.object);
   if (!objectName || node.property.type !== "Identifier") return undefined;
   return `${objectName}.${node.property.name}`;
 };
@@ -10,43 +19,50 @@ const calleeName = (node) => {
 // `return f(...)` and `return await f(...)` are the shapes that smuggle an
 // unexamined value out of a function. A returned identifier, literal, or
 // object built in place has already been through the function's own hands.
-const callExpressionOf = (node) => {
-  if (!node) return undefined;
-  if (node.type === "CallExpression") return node;
+const returnedCalls = (node) => {
+  if (!node) return [];
+  if (node.type === "CallExpression") return [node];
   if (
-    node.type === "AwaitExpression" &&
-    node.argument.type === "CallExpression"
-  ) {
-    return node.argument;
+    [
+      "AwaitExpression",
+      "ChainExpression",
+      "TSAsExpression",
+      "TSNonNullExpression",
+      "TSSatisfiesExpression",
+      "TSTypeAssertion",
+    ].includes(node.type)
+  ) return returnedCalls(node.expression ?? node.argument);
+  if (node.type === "ConditionalExpression") {
+    return [
+      ...returnedCalls(node.consequent),
+      ...returnedCalls(node.alternate),
+    ];
   }
-  return undefined;
+  if (node.type === "LogicalExpression") {
+    return [...returnedCalls(node.left), ...returnedCalls(node.right)];
+  }
+  return [];
 };
-
-const returnedCall = (statement) => callExpressionOf(statement.argument);
 
 const reportUnassertedReturn = (context, node, call) =>
   context.report({
     node,
     messageId: "unassertedReturn",
-    data: { callee: calleeName(call.callee) ?? "the call" },
+    data: { callee: displayCalleeName(call.callee) ?? "the call" },
   });
 
-/**
- * Requires a function that returns a call's result directly to either hold an
- * assertion somewhere in its body, or bind the result first so it can be
- * asserted: `const result = f(...); assert(...); return result;`.
- */
+/** Requires direct call results to be bound, asserted, and then returned. */
 export default {
   meta: {
     type: "suggestion",
     docs: {
       description:
-        "Disallow returning a call's result directly from a function that asserts nothing; assign, assert, then return",
+        "Disallow returning a call's result directly; assign, assert, then return",
       url: "https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md",
     },
     messages: {
       unassertedReturn:
-        "This function returns {{callee}}(...) without asserting anything. Assign the result to a local, assert its shape, then return it.",
+        "This function returns {{callee}}(...) without asserting that result. Assign it to a local, assert its shape, then return it.",
     },
     schema: [
       {
@@ -58,71 +74,67 @@ export default {
             minItems: 1,
             items: { type: "string" },
           },
+          directCallbackMaxStatements: { type: "integer", minimum: 0, default: 3 },
+          ignoreAssertionHelpers: { type: "boolean", default: false },
           ignoreDelegates: { type: "boolean", default: true },
+          ignoreDirectCallbacks: { type: "boolean", default: false },
+          ignoreJSXCallbacks: { type: "boolean", default: false },
+          ignoreJSXComponents: { type: "boolean", default: false },
+          ignoreNoInputClosures: { type: "boolean", default: false },
+          ignoreReactHooks: { type: "boolean", default: false },
+          ignoreTrivialConstructors: { type: "boolean", default: false },
+          minimumStatements: { type: "integer", minimum: 0, default: 1 },
         },
       },
     ],
   },
   create(context) {
     const options = context.options[0] ?? {};
-    const assertionNames = new Set(
-      options.assertionNames ?? [
-        "assert",
-        "assertDefined",
-        "nodeAssert",
-        "nodeAssert.ok",
-      ],
-    );
-    const ignoreDelegates = options.ignoreDelegates ?? true;
+    const assertionNames = assertionNameSet(options.assertionNames);
+    const eligibility = {
+      ...options,
+      checkExpressionBodies: true,
+      ignoreDelegates: options.ignoreDelegates !== false,
+    };
     const functionStack = [];
 
     const exitFunction = () => {
       const current = functionStack.pop();
       if (!current) return;
-      if (current.assertions > 0) return;
-
       const body = current.node.body;
-      if (body.type !== "BlockStatement") {
-        const call = callExpressionOf(body);
-        if (!call) return;
-        const callee = calleeName(call.callee);
-        if (ignoreDelegates && callee) return;
-        reportUnassertedReturn(context, body, call);
-        return;
-      }
-
-      // A delegate's whole body is the one return: it computes nothing of its
-      // own, so the named callee carries the invariants and the wrapper has
-      // nothing true to assert. `{ return f(x); }` and `=> f(x)` both qualify.
-      const delegateCall =
-        body.body.length === 1 ? returnedCall(body.body[0]) : undefined;
-      const isDelegate = delegateCall && calleeName(delegateCall.callee);
-      if (ignoreDelegates && isDelegate) return;
-
-      for (const statement of current.returns) {
-        const call = returnedCall(statement);
-        reportUnassertedReturn(context, statement, call);
+      const statementCount = body.type === "BlockStatement" ? body.body.length : 1;
+      if (statementCount < (options.minimumStatements ?? 1)) return;
+      if (isFunctionExempt(current.node, eligibility)) return;
+      if (
+        options.ignoreAssertionHelpers &&
+        assertionNames.has(functionName(current.node))
+      ) return;
+      for (const { node, calls } of current.returns) {
+        for (const call of calls) reportUnassertedReturn(context, node, call);
       }
     };
 
     return {
       ":function": (node) => {
-        functionStack.push({ assertions: 0, node, returns: [] });
+        const calls =
+          node.body.type === "BlockStatement"
+            ? []
+            : returnedCalls(node.body).filter(
+                (call) => !isAssertionCall(call, assertionNames),
+              );
+        functionStack.push({
+          node,
+          returns: calls.length > 0 ? [{ calls, node: node.body }] : [],
+        });
       },
       ":function:exit": exitFunction,
-      CallExpression(node) {
-        if (!assertionNames.has(calleeName(node.callee))) return;
-        const current = functionStack.at(-1);
-        if (current) current.assertions += 1;
-      },
       ReturnStatement(node) {
         const current = functionStack.at(-1);
         if (!current) return;
-        const call = returnedCall(node);
-        if (!call) return;
-        // Returning an assertion helper's own result is not a smuggled value.
-        if (assertionNames.has(calleeName(call.callee))) return;
-        current.returns.push(node);
+        const calls = returnedCalls(node.argument).filter(
+          (call) => !isAssertionCall(call, assertionNames),
+        );
+        if (calls.length > 0) current.returns.push({ calls, node });
       },
     };
   },
