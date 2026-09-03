@@ -6,6 +6,8 @@ The `agentReadiness` preset also uses two, but sets `minimumStatements: 0` and `
 
 Default assertion names are `assert`, `assertDefined`, `nodeAssert`, and `nodeAssert.ok`. Configure `assertionNames` for application helpers, `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
 
+`ignoreDelegates` excludes functions whose entire body forwards to one call, including awaited calls. Use it only when the called boundary owns the contract; it is off by default, and domain adapters with meaningful validation should remain checked.
+
 ## Production-derived example
 
 This redacted backend payload compactor asserts both its input budget and the bound it promises callers:

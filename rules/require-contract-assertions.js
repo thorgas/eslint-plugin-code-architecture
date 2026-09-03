@@ -2,6 +2,10 @@ import {
   assertionNameSet,
   isAssertionCall,
 } from "./assertion-helpers.js";
+import {
+  functionName,
+  isFunctionExempt,
+} from "./require-assertions.js";
 
 const equalityOperators = new Set(["==", "===", "!=", "!=="]);
 const controlFlowTypes = new Set([
@@ -82,6 +86,20 @@ const variableReferencedWithin = (variable, ancestor) =>
   variable?.references.some(({ identifier }) =>
     isAncestor(ancestor, identifier),
   ) ?? false;
+
+const isVacuousExpression = (expression, target, sourceCode) => {
+  if (expression.type === "Literal") return expression.value === true;
+  if (
+    expression.type === "BinaryExpression" &&
+    equalityOperators.has(expression.operator)
+  ) {
+    return (
+      identifierMatchesVariable(expression.left, target.variable, sourceCode) &&
+      identifierMatchesVariable(expression.right, target.variable, sourceCode)
+    );
+  }
+  return false;
+};
 
 const unwrapType = (type) => {
   let current = type;
@@ -222,11 +240,20 @@ const assertionCondition = (call) => {
 const isTypeOnlyAssertion = (call, target, sourceCode) => {
   const expression = assertionCondition(call);
   if (!expression) return false;
+  const referencedType = typeReferenceName(target.type);
+  const typeVariable =
+    referencedType && target.type?.typeName?.type === "Identifier"
+      ? findVariable(sourceCode, target.type.typeName)
+      : null;
+  const alias = typeVariable?.defs.find(
+    ({ node }) => node.type === "TSTypeAliasDeclaration",
+  )?.node.typeAnnotation;
+  const resolvedTarget = alias ? { ...target, type: alias } : target;
   return (
-    redundantTypeofCheck(expression, target, sourceCode) ||
-    redundantNullishCheck(expression, target, sourceCode) ||
-    redundantInstanceCheck(expression, target, sourceCode) ||
-    redundantArrayCheck(expression, target, sourceCode)
+    redundantTypeofCheck(expression, resolvedTarget, sourceCode) ||
+    redundantNullishCheck(expression, resolvedTarget, sourceCode) ||
+    redundantInstanceCheck(expression, resolvedTarget, sourceCode) ||
+    redundantArrayCheck(expression, resolvedTarget, sourceCode)
   );
 };
 
@@ -282,6 +309,14 @@ const assertionDominatesReturn = (call, returnNode) => {
   }
   return true;
 };
+
+const variableWrittenBetween = (variable, start, end) =>
+  variable?.references.some(
+    (reference) =>
+      reference.isWrite() &&
+      reference.identifier.range[0] > start.range[0] &&
+      reference.identifier.range[0] < end.range[0],
+  ) ?? false;
 
 const unwrapReturnedExpression = (expression) => {
   let current = expression;
@@ -365,6 +400,12 @@ const returnIsAsserted = (state, returned, returnNode, sourceCode, options) => {
       ? variableReferencedWithin(target.variable, condition)
       : assertionReferencesMember(condition, returned, sourceCode);
     if (!referencesReturn) return false;
+    if (target && variableWrittenBetween(target.variable, call, returnNode)) {
+      return false;
+    }
+    if (target && isVacuousExpression(condition, target, sourceCode)) {
+      return false;
+    }
     return !(
       options.ignoreTypeOnlyAssertions &&
       target &&
@@ -373,20 +414,46 @@ const returnIsAsserted = (state, returned, returnNode, sourceCode, options) => {
   });
 };
 
+const assertionPrecedesParameterUse = (call, target, sourceCode) => {
+  const condition = assertionCondition(call);
+  if (!condition || !variableReferencedWithin(target.variable, condition)) {
+    return false;
+  }
+  if (isVacuousExpression(condition, target, sourceCode)) return false;
+
+  const firstUse = target.variable?.references
+    .map(({ identifier }) => identifier)
+    .filter(
+      (identifier) =>
+        identifier.range[0] >= target.functionNode.body.range[0] &&
+        !isAncestor(condition, identifier),
+    )
+    .sort((left, right) => left.range[0] - right.range[0])[0];
+  if (firstUse && call.range[0] >= firstUse.range[0]) return false;
+
+  const body = target.functionNode.body;
+  if (body.type !== "BlockStatement") return false;
+  if (firstUse) return assertionDominatesReturn(call, firstUse);
+
+  let current = call.parent;
+  while (current && current !== body) {
+    if (controlFlowTypes.has(current.type)) return false;
+    current = current.parent;
+  }
+  return current === body;
+};
+
 const reportParameters = (context, state, sourceCode, options) => {
   if (!options.checkParameters) return;
   for (const binding of state.bindings) {
     const target = {
       ...binding,
+      functionNode: state.node,
       variable: findVariable(sourceCode, binding.node),
     };
     const asserted = state.assertions.some(
       (call) =>
-        assertionCondition(call) !== null &&
-        variableReferencedWithin(
-          target.variable,
-          assertionCondition(call),
-        ) &&
+        assertionPrecedesParameterUse(call, target, sourceCode) &&
         !(
           options.ignoreTypeOnlyAssertions &&
           isTypeOnlyAssertion(call, target, sourceCode)
@@ -450,6 +517,20 @@ const rule = {
           },
           checkParameters: { type: "boolean", default: true },
           checkReturns: { type: "boolean", default: true },
+          directCallbackMaxStatements: {
+            type: "integer",
+            minimum: 0,
+            default: 3,
+          },
+          ignoreAssertionHelpers: { type: "boolean", default: false },
+          ignoreDirectCallbacks: { type: "boolean", default: false },
+          ignoreDelegates: { type: "boolean", default: false },
+          ignoreJSXCallbacks: { type: "boolean", default: false },
+          ignoreJSXComponents: { type: "boolean", default: false },
+          ignoreNoInputClosures: { type: "boolean", default: false },
+          ignoreReactHooks: { type: "boolean", default: false },
+          ignoreTrivialConstructors: { type: "boolean", default: false },
+          minimumStatements: { type: "integer", minimum: 0, default: 1 },
           ignoreTypeOnlyAssertions: { type: "boolean", default: true },
         },
       },
@@ -458,6 +539,8 @@ const rule = {
   create(context) {
     const configured = context.options[0] ?? {};
     const options = {
+      ...configured,
+      checkExpressionBodies: true,
       checkParameters: configured.checkParameters !== false,
       checkReturns: configured.checkReturns !== false,
       ignoreTypeOnlyAssertions:
@@ -486,6 +569,18 @@ const rule = {
       ":function:exit"() {
         const state = functionStack.pop();
         if (!state) return;
+        const statementCount =
+          state.node.body.type === "BlockStatement"
+            ? state.node.body.body.length
+            : 1;
+        if (statementCount < (options.minimumStatements ?? 1)) return;
+        if (isFunctionExempt(state.node, options)) return;
+        if (
+          options.ignoreAssertionHelpers &&
+          assertionNames.has(functionName(state.node))
+        ) {
+          return;
+        }
         reportParameters(context, state, sourceCode, options);
         reportReturns(context, state, sourceCode, options);
       },

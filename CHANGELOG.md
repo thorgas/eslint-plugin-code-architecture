@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0-alpha.1
+
+- Add shared production eligibility options to `require-contract-assertions` for callbacks, JSX, hooks, no-input closures, trivial constructors, delegates, statement thresholds, and assertion-helper implementations while keeping `agentReadiness` exhaustive.
+- Require parameter preconditions to precede use and dominate the path to it; reject postconditions invalidated by later mutation.
+- Reject vacuous self-comparisons and TypeScript-only checks hidden behind direct type aliases.
+- Add redacted production-derived regression coverage for selectors, predicates, event delegates, React/XState-style framework callbacks, assertion helpers, and meaningful domain contracts.
+
 ## 0.6.0-alpha.0
 
 - Add opt-in `evoluDependencyInjection` and `evoluConventions` presets derived from Evolu's dependency-injection and TypeScript convention guides.

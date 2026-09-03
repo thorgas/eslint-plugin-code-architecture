@@ -218,3 +218,118 @@ test("require-contract-assertions supports configured assertion helpers", () => 
     ),
   ).toHaveLength(0);
 });
+
+test("require-contract-assertions can reuse production function eligibility", () => {
+  expect(
+    lint(
+      `
+        const selectReady = (state: State) => state.ready;
+        const allReady = (items: ReadonlyArray<Item>) =>
+          items.every((item) => item.ready);
+        const handleRestart = () => actor.send({ type: "RESTARTED" });
+        const useStatus = (input: Input) => input.status;
+      `,
+      [{
+        ignoreDelegates: true,
+        ignoreDirectCallbacks: true,
+        ignoreJSXComponents: true,
+        ignoreNoInputClosures: true,
+        ignoreReactHooks: true,
+        minimumStatements: 2,
+      }],
+    ),
+  ).toHaveLength(0);
+});
+
+test("require-contract-assertions can ignore React components and JSX callbacks", () => {
+  const messages = lintRule({
+    code: `const View = ({ items }: Props) => (
+      <List
+        data={items}
+        renderItem={({ item }) => <Text>{item.title}</Text>}
+      />
+    );`,
+    filename: "src/view.tsx",
+    options: [{ ignoreJSXCallbacks: true, ignoreJSXComponents: true }],
+    rule,
+    ruleName: "require-contract-assertions",
+  });
+  expect(messages).toHaveLength(0);
+});
+
+test("require-contract-assertions exempts recognized assertion helper implementations", () => {
+  expect(
+    lint(
+      `
+        function assert(condition: unknown, message?: string): asserts condition {
+          if (!condition) throw new Error(message);
+        }
+      `,
+      [{ ignoreAssertionHelpers: true }],
+    ),
+  ).toHaveLength(0);
+});
+
+test("require-contract-assertions still checks meaningful domain contracts", () => {
+  const messages = lint(
+    `
+      function normalize(value: string, limit: number): string {
+        const result = value.trim().slice(0, limit);
+        return result;
+      }
+    `,
+    [{ minimumStatements: 2, ignoreDirectCallbacks: true }],
+  );
+  expect(messages.map(({ messageId }) => messageId)).toEqual([
+    "unassertedParameter",
+    "unassertedParameter",
+    "unassertedReturn",
+  ]);
+});
+
+test("require-contract-assertions rejects late and conditionally unreachable preconditions", () => {
+  const messages = lint(`
+    function normalize(value: string, enabled: boolean): string {
+      const result = value.trim();
+      if (enabled) assert(value.length > 0);
+      assert(enabled === true);
+      assert(result.length > 0);
+      return result;
+    }
+  `);
+  expect(messages.map(({ messageId }) => messageId)).toEqual([
+    "unassertedParameter",
+    "unassertedParameter",
+  ]);
+});
+
+test("require-contract-assertions rejects postconditions invalidated by mutation", () => {
+  const messages = lint(`
+    function normalize(value: string): string {
+      assert(value.length > 0);
+      let result = value.trim();
+      assert(result.length > 0);
+      result = result.toUpperCase();
+      return result;
+    }
+  `);
+  expect(messages.map(({ messageId }) => messageId)).toEqual([
+    "unassertedReturn",
+  ]);
+});
+
+test("require-contract-assertions rejects vacuous checks and aliased type checks", () => {
+  const messages = lint(`
+    type Label = string;
+    function normalize(value: Label): Label {
+      assert(typeof value === "string");
+      const result = value.trim();
+      assert(result === result);
+      return result;
+    }
+  `);
+  expect(messages.map(({ messageId }) => messageId)).toEqual([
+    "unassertedParameter",
+    "unassertedReturn",
+  ]);
+});

@@ -306,6 +306,7 @@ ESLint visits files independently, so a reliable “literal appears in two files
 - Every function, including concise arrows and otherwise trivial functions, contains at least two recognized runtime assertions.
 - Every runtime parameter binding is referenced by at least one semantic assertion.
 - Every nontrivial returned value is covered by a semantic assertion that dominates that return path.
+- Preconditions must precede use, and mutating a result after its postcondition invalidates that postcondition.
 - Obvious checks already expressed by an explicit TypeScript annotation do not satisfy the parameter or return contract.
 
 ```js
@@ -314,7 +315,7 @@ export default [
 ];
 ```
 
-This preset is intentionally demanding. A computed return should normally be assigned to a local binding, checked with a postcondition, and then returned. Statically evident returns such as literals, JSX, and function values do not need a separate return assertion, but the function still needs the two assertions required by `require-assertions`.
+This preset is intentionally demanding. A computed return should normally be assigned to a local binding, checked with a postcondition, and then returned. Statically evident returns such as literals, JSX, and function values do not need a separate return assertion, but the function still needs the two assertions required by `require-assertions`. For production applications, configure `require-contract-assertions` with the shared eligibility options documented on its rule page so framework callbacks and rendering glue do not receive low-value contract assertions.
 
 ### React: design tokens, including React Native
 

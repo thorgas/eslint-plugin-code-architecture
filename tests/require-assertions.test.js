@@ -183,6 +183,19 @@ test("require-assertions preserves exhaustive callback checking by default", () 
   expect(messages).toHaveLength(1);
 });
 
+test("require-assertions can ignore thin delegates", () => {
+  const messages = lintRule({
+    code: `
+      const restart = () => actor.send({ type: "RESTARTED" });
+      function normalize(value) { return normalizeValue(value); }
+    `,
+    options: [{ ignoreDelegates: true, minimum: 2 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+  expect(messages).toHaveLength(0);
+});
+
 test("require-assertions can ignore short direct call callbacks", () => {
   const messages = lintRule({
     code: `register((value) => {
