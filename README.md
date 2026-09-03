@@ -2,16 +2,22 @@
 
 Portable ESLint rules that turn architectural decisions into fast, local feedback for humans and coding agents.
 
-The plugin combines four ideas:
+## See architectural drift before review
 
-- [TigerStyle](https://tigerstyle.dev/): explicit limits, assertion density, small interfaces, and visible error handling.
-- [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase): high-cohesion verticals with explicit dependency direction and public surfaces.
-- [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves): strict lint feedback that keeps UI components declarative.
-- [Composition is all you need](https://www.youtube.com/watch?v=4KvbVq3Eg5w): compound components whose consumers control the child hierarchy.
+The plugin makes important design decisions executable:
+
+- Eleven rules are framework-agnostic TypeScript checks that work equally well in backend services, libraries, CLIs, and frontend applications.
+- Unsafe casts and raw `JSON.parse` calls fail where they are written.
+- Oversized functions, positional parameter growth, and missing invariants get immediate feedback.
+- Cross-feature imports must follow declared dependency direction and public entry points.
+- Effect failures remain typed and visible instead of being silently erased.
+- Optional React and React Native rules keep components declarative, accessible, tokenized, and consumer-composable.
+
+Every rule has a passing example in [Rule reference and examples](#rule-reference-and-examples), with detailed invalid cases and options on its linked rule page.
+
+The design draws from [TigerStyle](https://tigerstyle.dev/), [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase), [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves), and [Composition is all you need](https://www.youtube.com/watch?v=4KvbVq3Eg5w). See [References and attribution](docs/references.md) for the policy sources.
 
 It is ESM-only, supports ESLint flat config, and does not require type-aware linting.
-
-See [References and attribution](docs/references.md) for the source material behind each policy. Rule pages link directly to the work they adapt.
 
 ## Install
 
@@ -29,12 +35,12 @@ import tseslint from "typescript-eslint";
 const integrations = [
   // Add only when Effect is installed and used:
   // ...architecture.configs.effect,
-  // Add only when React is installed and used:
-  // ...architecture.configs.react,
   // Add for compound components whose consumers should own layout:
   // ...architecture.configs.composition,
   // Add only to files that implement or consume strict LEGO object APIs:
   // ...architecture.configs.lego,
+  // Add only when React is installed and used:
+  // ...architecture.configs.react,
 ];
 
 export default tseslint.config(
@@ -51,6 +57,96 @@ Presets are flat-config arrays and fall into two groups:
 
 - Library-agnostic: `recommended`, `tigerstyle`, and `strict`. The `strict` preset combines the other two.
 - Optional library and architecture integrations: `effect`, `react`, `composition`, and `lego`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
+
+## Production patterns
+
+These patterns are adapted from two production applications that enable the rules as errors. Both are private, so product-specific names and domain details are redacted. The examples progress from TypeScript, through frontend/backend libraries and JSX composition, to React, and finally React Native. The complete rule index follows the same order.
+
+### TypeScript: prefer one named input and assert the result
+
+This decision helper uses an object parameter instead of several positional arguments, satisfying a stricter `max-function-parameters` configuration. Its postconditions make the intended invariants visible to `require-assertions`.
+
+```ts
+export function actionIsAllowed({ draft, busy, offline }: ActionState): boolean {
+  const allowed = draft.trim().length > 0 && !busy && !offline;
+
+  assert(!offline || !allowed, "offline actions must be rejected");
+  assert(draft.trim().length > 0 || !allowed, "empty actions must be rejected");
+  return allowed;
+}
+```
+
+### Frontend/backend library: validate variants instead of casting
+
+An Effect Schema boundary replaces unchecked parsing and casts with runtime evidence. The same pattern works in browser clients, Node.js services, workers, and CLIs.
+
+```ts
+const StreamEvent = Schema.Union(
+  Schema.Struct({ type: Schema.Literal("started"), id: Id }),
+  Schema.Struct({ type: Schema.Literal("delta"), text: Schema.String }),
+  Schema.Struct({ type: Schema.Literal("completed"), result: Result }),
+);
+
+const event = Schema.decodeUnknownSync(StreamEvent)(JSON.parse(message));
+```
+
+### JSX component composition: let the consumer choose the parts
+
+The owner exports an open root and independent parts. The consumer—not the root—decides whether the optional label exists and where each part appears.
+
+```tsx
+const HeadingRoot = ({ children }: PropsWithChildren) => <View>{children}</View>;
+const HeadingLabel = ({ children }: PropsWithChildren) => <Text>{children}</Text>;
+const HeadingTitle = ({ children }: PropsWithChildren) => <Text>{children}</Text>;
+
+export const Heading = {
+  Root: HeadingRoot,
+  Label: HeadingLabel,
+  Title: HeadingTitle,
+};
+
+<Heading.Root>
+  {label && <Heading.Label>{label}</Heading.Label>}
+  <Heading.Title>{title}</Heading.Title>
+</Heading.Root>;
+```
+
+### React: render state and send events
+
+The optional React rule keeps state-machine components on a declarative path: read the snapshot, pass events outward, and keep orchestration out of the render function.
+
+```tsx
+function StatusScreen() {
+  const [snapshot, send] = useMachine(statusMachine);
+  return <StatusView status={snapshot.value} onEvent={send} />;
+}
+```
+
+### React Native: make an interactive primitive carry its contract
+
+The React Native adoption rules add UI-specific guarantees. In this redacted button primitive, `require-interactive-component-contract` keeps accessibility and disabled behavior together, while the configured design-value rules require semantic tokens instead of raw colors or spacing.
+
+```tsx
+function Action({ label, disabled, loading, onPress, children }: ActionProps) {
+  assert(label.trim().length > 0, "Action requires an accessible label");
+  const unavailable = disabled || loading;
+
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: unavailable, busy: loading }}
+      disabled={unavailable}
+      onPress={onPress}
+      style={styles.root}
+    >
+      {loading ? <ActivityIndicator color={tokens.color.actionContent} /> : children}
+    </Pressable>
+  );
+}
+```
+
+These are representative patterns, not additional conventions imposed by the plugin. Each rule page linked below defines the exact syntax the rule can and cannot prove.
 
 ## Adopt incrementally in an existing codebase
 
@@ -118,7 +214,11 @@ Use separate commands so each tool has a clear responsibility:
 
 Oxlint also has an [alpha JavaScript-plugin compatibility layer](https://oxc.rs/docs/guide/usage/linter/js-plugins.html). This example intentionally keeps `eslint-plugin-code-architecture` on ESLint's stable plugin API and follows Oxlint's documented [incremental migration approach](https://oxc.rs/docs/guide/usage/linter/migrate-from-eslint.html): run fast general checks first, then ESLint for custom rules.
 
-## Architecture boundaries
+## Project-specific rules
+
+These rules need the consuming application's module names, vocabulary, or design-system contract. They are not enabled by a preset.
+
+### TypeScript: architecture boundaries
 
 Verticals are deliberately configured by the consuming application because domain names and dependency direction are project-specific:
 
@@ -155,7 +255,7 @@ export default [
 
 This supports relative imports and configurable aliases. Cross-vertical imports must follow each source vertical's `allow` list and each target vertical's `public` patterns. Composition roots can be granted explicit private access.
 
-## Domain vocabulary
+### TypeScript: domain vocabulary
 
 ESLint visits files independently, so a reliable “literal appears in two files” rule cannot aggregate whole-program state. `centralize-domain-literals` instead requires the project to declare its fixed vocabulary and approved constants files. This deterministically enforces the stronger rule from the first use.
 
@@ -172,7 +272,7 @@ ESLint visits files independently, so a reliable “literal appears in two files
 ]
 ```
 
-## Design tokens
+### React: design tokens, including React Native
 
 `no-raw-design-values` prohibits explicitly configured string or numeric values only when they appear in configured object properties. Consumers provide the semantic meaning: which values and properties belong together, their approved token replacements, token files, and narrow exceptions.
 
@@ -208,40 +308,49 @@ The rule is deliberately excluded from every preset. It does not assume React, R
 
 Design-system adoption rules are also opt-in. Activate a rule only after the matching primitive, token family, interaction contract, dismissal pattern, or component variants exist and their intended consumers have migrated. Enabling them earlier would turn architectural feedback into suppressions rather than adoption.
 
-## Library-agnostic rules
+## Rule reference and examples
 
-| Rule | Purpose | Preset |
-| --- | --- | --- |
-| [`centralize-domain-literals`](docs/rules/centralize-domain-literals.md) | Keep fixed vocabulary in constants modules | Configure |
-| [`enforce-module-boundaries`](docs/rules/enforce-module-boundaries.md) | Enforce vertical dependency direction and public surfaces | Configure |
-| [`imports-first`](docs/rules/imports-first.md) | Keep dependencies at the top of a module | `recommended` |
-| [`max-function-lines`](docs/rules/max-function-lines.md) | Enforce the 70-line TigerStyle limit for logic functions | `recommended`, `tigerstyle` |
-| [`max-function-parameters`](docs/rules/max-function-parameters.md) | Bound positional inputs | `recommended`, `tigerstyle` |
-| [`no-barrel-files`](docs/rules/no-barrel-files.md) | Disallow re-export barrels | `recommended` |
-| [`no-barrel-imports`](docs/rules/no-barrel-imports.md) | Require concrete module imports | `recommended`, `effect` |
-| [`no-design-identity-overrides`](docs/rules/no-design-identity-overrides.md) | Preserve component identity while permitting layout overrides | Configure |
-| [`no-raw-design-properties`](docs/rules/no-raw-design-properties.md) | Reject any static literal in configured design properties | Configure |
-| [`no-raw-design-values`](docs/rules/no-raw-design-values.md) | Require configured values to use semantic tokens in configured properties | Configure |
-| [`no-unasserted-return`](docs/rules/no-unasserted-return.md) | Disallow returning a call's result from an assertion-free function | Configure |
-| [`no-unsafe-type-assertions`](docs/rules/no-unsafe-type-assertions.md) | Ban casts and non-null assertions | `recommended` |
-| [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Require runtime validation around JSON parsing | `recommended` |
-| [`prefer-design-system-components`](docs/rules/prefer-design-system-components.md) | Replace configured platform primitives in consumer paths | Configure |
-| [`require-assertions`](docs/rules/require-assertions.md) | Require assertion density in functions | `tigerstyle` |
-| [`require-dismissible-modal-backdrop`](docs/rules/require-dismissible-modal-backdrop.md) | Require close and outside-press paths for transparent surfaces | Configure |
-| [`require-interactive-component-contract`](docs/rules/require-interactive-component-contract.md) | Require accessible shared-interaction contracts | Configure |
+Every rule has a compact passing example here, ordered from TypeScript to libraries, JSX composition, React, and React Native. Follow its link for failing examples, options, scope, and static-analysis limits. “Configure” means the rule needs project-specific vocabulary or component names; optional presets are never included by `strict`.
 
-## Optional integrations
+### 1. TypeScript
 
-These presets are never enabled by `recommended`, `tigerstyle`, or `strict`.
+These rules have no UI or framework dependency. Use them in backend services, libraries, CLIs, workers, or frontend TypeScript.
 
-| Ecosystem | Preset behavior | Enable when |
-| --- | --- | --- |
-| Effect | [`effect-error-handling`](docs/rules/effect-error-handling.md) plus [`no-barrel-imports`](docs/rules/no-barrel-imports.md) configured for `effect` and `@effect/platform` | The project installs and uses Effect |
-| React | [`declarative-components`](docs/rules/declarative-components.md) | The project installs and uses React with declarative component conventions |
-| Composition guardrails | [`prefer-composition-over-configuration`](docs/rules/prefer-composition-over-configuration.md), [`require-composable-root-children`](docs/rules/require-composable-root-children.md), and [`no-root-owned-compound-parts`](docs/rules/no-root-owned-compound-parts.md) | Consumers should control the existence, order, repetition, and nesting of UI parts |
-| LEGO compound APIs | The `composition` rules plus [`require-compound-component-api`](docs/rules/require-compound-component-api.md) and [`require-consumer-owned-compound-usage`](docs/rules/require-consumer-owned-compound-usage.md) | Selected files use the public object-namespace Provider/Root-and-parts convention |
+| Rule | Immediate benefit | Passing shape | Preset |
+| --- | --- | --- | --- |
+| [`centralize-domain-literals`](docs/rules/centralize-domain-literals.md) | Fixed vocabulary has one owner | `if (job.status === JOB_STATUS.COMPLETED) {}` | Configure |
+| [`enforce-module-boundaries`](docs/rules/enforce-module-boundaries.md) | Features use declared public edges | `import { findProduct } from "../catalog/product.api.js";` | Configure |
+| [`imports-first`](docs/rules/imports-first.md) | Dependencies stay visible | `import { parse } from "./parse.js";` before executable code | `recommended` |
+| [`max-function-lines`](docs/rules/max-function-lines.md) | Logic stays reviewable | `function total(items) { return items.reduce(sum, 0); }` | `recommended`, `tigerstyle` |
+| [`max-function-parameters`](docs/rules/max-function-parameters.md) | APIs resist positional growth | `function search({ query, limit, cursor }) {}` | `recommended`, `tigerstyle` |
+| [`no-barrel-files`](docs/rules/no-barrel-files.md) | Dependency edges stay direct | Define `export function charge() {}` in `charge.js` | `recommended` |
+| [`no-barrel-imports`](docs/rules/no-barrel-imports.md) | Imports reveal their owner | `import { charge } from "./charge.js";` | `recommended`, `effect` |
+| [`no-unasserted-return`](docs/rules/no-unasserted-return.md) | Returned call results carry evidence | `const user = await loadUser(); assert(user.id); return user;` | Configure |
+| [`no-unsafe-type-assertions`](docs/rules/no-unsafe-type-assertions.md) | Unknown data cannot bypass checks | `Schema.decodeUnknownSync(User)(input)` | `recommended` |
+| [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Parsed JSON is validated immediately | `Schema.decodeUnknownSync(Config)(JSON.parse(text))` | `recommended` |
+| [`require-assertions`](docs/rules/require-assertions.md) | Function invariants become executable | `assert(result.length <= input.length); return result;` | `tigerstyle` |
 
-## Consumer-owned composition
+### 2. Frontend and backend libraries
+
+Library integrations remain opt-in and can apply on either side of the network.
+
+| Rule | Immediate benefit | Passing shape | Preset |
+| --- | --- | --- | --- |
+| [`effect-error-handling`](docs/rules/effect-error-handling.md) | Effect failures remain typed and visible | `program.pipe(Effect.catchTag("NotFound", recover))` | `effect` |
+
+### 3. JSX component composition
+
+These opt-in rules keep compound layout decisions with consumers. They analyze JSX structure without requiring React-specific hooks or state APIs.
+
+| Rule | Immediate benefit | Passing shape | Preset |
+| --- | --- | --- | --- |
+| [`prefer-composition-over-configuration`](docs/rules/prefer-composition-over-configuration.md) | Callers assemble collections and optional parts | `<List.Root>{items.map((item) => <List.Item key={item.id} />)}</List.Root>` | `composition` |
+| [`require-composable-root-children`](docs/rules/require-composable-root-children.md) | Every root leaves its hierarchy open | `function ListRoot({ children }) { return <ListContext.Provider>{children}</ListContext.Provider>; }` | `composition` |
+| [`no-root-owned-compound-parts`](docs/rules/no-root-owned-compound-parts.md) | Roots provide infrastructure, not fixed parts | `function ListRoot({ children }) { return <View>{children}</View>; }` | `composition` |
+| [`require-compound-component-api`](docs/rules/require-compound-component-api.md) | Compound APIs expose a boundary and reusable parts | `export const Counter = { Provider, Display, Increment };` | `lego` |
+| [`require-consumer-owned-compound-usage`](docs/rules/require-consumer-owned-compound-usage.md) | Consumers visibly choose compound parts | `<Counter.Provider><Counter.Display /><Counter.Increment /></Counter.Provider>` | `lego` |
+
+#### How the `composition` preset combines these rules
 
 The `composition` preset provides portable architectural guardrails: a root may coordinate state and infrastructure, but the consumer owns the child hierarchy. It catches statically visible prop-driven hierarchy assembly, requires every top-level boundary return to reference children, and prevents a boundary from rendering its own public parts.
 
@@ -273,7 +382,7 @@ Valid:
 
 Passing `composition` does not prove a complete LEGO architecture. The preset deliberately does not mandate dot-notation object exports, barrel files, React `useState`, or a `state/actions/meta` context shape. Module namespace exports are equally composable, and context organization is a separate convention rather than proof that consumers control structure.
 
-## Strict LEGO compound APIs
+#### How the `lego` preset adds a public compound API
 
 The opt-in `lego` preset combines `composition` with positive, convention-oriented checks. Apply it only to files that define or consume compound APIs; ordinary screens and components are not required to become compounds.
 
@@ -299,6 +408,27 @@ export const Counter = {
 By default, an identified compound object must be exported, expose `Provider` or `Root`, expose at least two additional component-valued parts, and avoid duplicate bindings. Imported or same-file compound boundaries must be open and contain a consumer-selected part from the same namespace. Configure `boundaryMembers`, `minimumParts`, `compoundNamePattern`, or `headlessCompounds` for other conventions and intentional actor/store-backed headless boundaries.
 
 The rules use deterministic same-file syntax analysis. They can validate bindings declared or imported in the current file, but they do not resolve re-export graphs, prove that a component consumes a particular context across files, or prove shared state semantics. No shared-state rule is shipped because naming a hook is not reliable evidence that state is shared. Actor and store implementations are supported without requiring React local state; teams may scope the preset and configure their boundary names without adopting `state/actions/meta`.
+
+### 4. React
+
+React integration is opt-in. These rules keep components declarative and enforce an adopted design system. The design-system rules support both web and native component contracts.
+
+| Rule | Immediate benefit | Passing shape | Preset |
+| --- | --- | --- | --- |
+| [`declarative-components`](docs/rules/declarative-components.md) | Components render state and send events | `const [snapshot, send] = useMachine(machine); return <Button onPress={send}>{snapshot.value}</Button>;` | `react` |
+| [`no-design-identity-overrides`](docs/rules/no-design-identity-overrides.md) | Consumers cannot restyle component identity | `<Button style={{ marginTop: 12 }} />` | Configure |
+| [`no-raw-design-properties`](docs/rules/no-raw-design-properties.md) | New raw design literals fail immediately | `{ color: theme.color.danger, gap: theme.space.md }` | Configure |
+| [`no-raw-design-values`](docs/rules/no-raw-design-values.md) | Known raw values point to their token | `<Spinner color={tokens.color.surface} />` | Configure |
+| [`prefer-design-system-components`](docs/rules/prefer-design-system-components.md) | Screens reuse adopted primitives | `<Button>Save</Button>` instead of a configured platform primitive | Configure |
+
+### 5. React Native interactions
+
+These interaction rules are listed last because the examples use React Native modal and pressable conventions. Both rules can also be configured for web React elements and attributes.
+
+| Rule | Immediate benefit | Passing shape | Preset |
+| --- | --- | --- | --- |
+| [`require-dismissible-modal-backdrop`](docs/rules/require-dismissible-modal-backdrop.md) | Transparent modals have both close paths | `<Modal transparent onRequestClose={close}><Pressable onPress={close} /></Modal>` | Configure |
+| [`require-interactive-component-contract`](docs/rules/require-interactive-component-contract.md) | Shared controls expose accessibility, disabled state, feedback, and content | `<Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} style={({ pressed }) => pressed && styles.pressed}>{children}</Pressable>` | Configure |
 
 ## Publishing
 
