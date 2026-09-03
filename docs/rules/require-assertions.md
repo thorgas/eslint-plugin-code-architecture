@@ -4,6 +4,31 @@ Requires a minimum number of runtime assertions per function. The TigerStyle pre
 
 Default assertion names are `assert`, `assertDefined`, `nodeAssert`, and `nodeAssert.ok`. Configure `assertionNames` for application helpers, `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
 
+## Production-derived example
+
+This redacted backend payload compactor asserts both its input budget and the bound it promises callers:
+
+```ts
+function compactPayload(value: unknown, depth = 0, maxItems = 20): unknown {
+  assert(depth >= 0, "compactPayload requires a non-negative depth");
+  if (depth >= 8) return "[nested data omitted]";
+
+  if (Array.isArray(value)) {
+    const kept = value
+      .slice(0, maxItems)
+      .map((item) => compactPayload(item, depth + 1, maxItems));
+    assert(kept.length <= maxItems, "result must stay within its item budget");
+    return value.length > kept.length
+      ? [...kept, `[${value.length - kept.length} more items omitted]`]
+      : kept;
+  }
+
+  return value;
+}
+```
+
+Tests can now exercise explicit preconditions and postconditions, including malformed inputs and persistence mistakes. Coding agents see the invariants next to the code they change, which reduces slow repository-wide inference and makes a safe modification easier to scope. The default rule minimum is configurable; use `minimum: 2` or the `tigerstyle`/`strict` preset to require the density illustrated here.
+
 The `tigerstyle` and `strict` presets set `ignoreDirectCallbacks: true`, `ignoreJSXCallbacks: true`, `ignoreJSXComponents: true`, `ignoreReactHooks: true`, `creditWrapperClosures: true`, `ignoreNoInputClosures: true`, `ignoreTrivialConstructors: true`, and `countGuardedThrows: true`. This excludes React render callbacks declared directly in JSX attributes and zero-input function expressions assigned to variables for orchestration:
 
 ```tsx

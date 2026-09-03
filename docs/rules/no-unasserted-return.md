@@ -36,6 +36,39 @@ A delegate computes nothing of its own, so the named callee carries the invarian
 
 Assertions inside a nested function count only toward that nested function, matching `require-assertions`' scoping.
 
+## Production-derived example
+
+A redacted repository adapter used to return a downstream call without checking
+the contract it promised to its callers:
+
+```ts
+async function loadMembership(userId: string): Promise<Membership> {
+  const recordId = membershipIdFor(userId);
+  return await database.getMembership(recordId);
+}
+```
+
+The production-shaped version names the boundary result and verifies its key
+postconditions before it escapes:
+
+```ts
+async function loadMembership(userId: string): Promise<Membership> {
+  const recordId = membershipIdFor(userId);
+  const membership = await database.getMembership(recordId);
+
+  assertDefined(membership, "loadMembership: membership must exist");
+  assert(
+    membership.userId === userId,
+    "loadMembership: database result must belong to the requested user",
+  );
+  return membership;
+}
+```
+
+Failure is now attributed at the repository boundary instead of surfacing later
+as unrelated behavior. Tests can target the missing and mismatched-record cases,
+and agents can infer the function's contract from executable evidence.
+
 ## When not to use it
 
 This rule is deliberately excluded from every preset. It encodes a strict house style; adopt it at `warn` first to measure, then per directory as files are brought up to the standard.

@@ -18,3 +18,40 @@ Use `boundaryMembers` for another boundary convention and `headlessCompounds` fo
 The rule uses same-file syntax and imported binding names. It does not prove that a descendant reads shared state or resolve a compound namespace through re-export graphs.
 
 Reference: Fernando Rojo, [Composition Pattern Guide](https://github.com/francostan/composition-pattern-starter/blob/main/docs/Pattern.md).
+
+## Production-derived example
+
+This individual rule belongs to the stricter `lego` preset and validates usage
+sites; it does not define the compound API. This redacted example is based on a
+private app's restore confirmation:
+
+```tsx
+// Before: the boundary is open, but a fixed layout still owns all parts.
+<Dialog.Root onRequestClose={cancel} visible={open}>
+  <RestoreConfirmationLayout />
+</Dialog.Root>
+```
+
+The production-shaped consumer selects and arranges the compound parts:
+
+```tsx
+// After: the usage site makes its exact dialog structure visible.
+<Dialog.Root onRequestClose={cancel} visible={open}>
+  <Dialog.Content>
+    <Dialog.Title>Replace this device's data?</Dialog.Title>
+    <ArchiveSummary value={summary} />
+    <Dialog.Actions>
+      <Button.Root onPress={cancel} label="Cancel" testID="cancel">
+        <Button.Text>Cancel</Button.Text>
+      </Button.Root>
+      <Button.Root onPress={confirm} label="Replace data" testID="confirm">
+        <Button.Text>Replace data</Button.Text>
+      </Button.Root>
+    </Dialog.Actions>
+  </Dialog.Content>
+</Dialog.Root>
+```
+
+The feature test can assert the exact selected parts and order without mocking
+a hidden layout component. Agents can understand the screen from the call site
+and make a local change instead of tracing configuration through another file.

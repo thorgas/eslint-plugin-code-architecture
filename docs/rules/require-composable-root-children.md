@@ -31,3 +31,39 @@ Concise arrows, multiple returns, top-level conditional and logical expressions,
 Use `componentNamePattern` to adopt another root naming convention.
 
 References: Fernando Rojo, [Composition Pattern Guide](https://github.com/francostan/composition-pattern-starter/blob/main/docs/Pattern.md), and Vercel, [Composition](https://www.components.build/composition).
+
+## Production-derived example
+
+This individual rule participates in the optional `composition` preset. It is
+not a separate "keep roots open" preset. This redacted root is based on a
+private app's shared button:
+
+```tsx
+// Before: the root chooses its only possible child.
+function ButtonRoot({ label, onPress }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress}>
+      <Text>{label}</Text>
+    </Pressable>
+  );
+}
+```
+
+The production shape accepts and renders consumer-owned content:
+
+```tsx
+// After: text, icons, and progress content can be supplied by the caller.
+function ButtonRoot({ children, onPress }: ButtonRootProps) {
+  return (
+    <ButtonVariantContext.Provider value="primary">
+      <Pressable accessibilityRole="button" onPress={onPress}>
+        {children}
+      </Pressable>
+    </ButtonVariantContext.Provider>
+  );
+}
+```
+
+Tests can inject the smallest child needed to exercise the root, while feature
+tests assert the exact composed content they own. Agents avoid modifying a
+central root whenever a caller needs a new child arrangement.

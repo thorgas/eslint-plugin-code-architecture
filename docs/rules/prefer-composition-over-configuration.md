@@ -48,3 +48,44 @@ Options:
 References: Fernando Rojo, [Composition Pattern Guide](https://github.com/francostan/composition-pattern-starter/blob/main/docs/Pattern.md), and Vercel, [Composition](https://www.components.build/composition).
 
 The rule follows local aliases and helpers owned by the component. It does not perform type-aware or cross-file data-flow analysis. Optional decoration remains allowed until it reaches `minimumConditionalProps`, unless that threshold is configured more strictly.
+
+## Production-derived example
+
+This individual rule is one of three rules in the optional `composition`
+preset; it is not itself the preset. The following redacted migration comes
+from a private app where confirmation actions varied by workflow:
+
+```tsx
+// Before: the component owns every structural choice.
+function ConfirmationCard({ destructive, showCancel, showSummary, summary }) {
+  return (
+    <View>
+      {showSummary && <Summary value={summary} />}
+      <ConfiguredAction destructive={destructive} />
+      {showCancel && <CancelAction />}
+    </View>
+  );
+}
+```
+
+Consumers now assemble the visible structure directly:
+
+```tsx
+// After: each workflow renders exactly the parts it needs.
+<Confirmation.Root>
+  <Confirmation.Summary value={summary} />
+  <Confirmation.Actions>
+    <Button.Root onPress={cancel} label="Cancel" testID="cancel">
+      <Button.Text>Cancel</Button.Text>
+    </Button.Root>
+    <Button.Root onPress={confirm} label="Replace data" testID="confirm">
+      <Button.Text>Replace data</Button.Text>
+    </Button.Root>
+  </Confirmation.Actions>
+</Confirmation.Root>
+```
+
+Each workflow can be tested from its rendered tree without constructing a
+matrix of configuration props. Agents can see and edit the resulting UI in one
+file, avoiding slow searches through a configurable component's hidden
+branches.

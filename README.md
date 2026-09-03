@@ -13,6 +13,8 @@ The plugin makes important design decisions executable:
 - Effect failures remain typed and visible instead of being silently erased.
 - Optional React and React Native rules keep components declarative, accessible, tokenized, and consumer-composable.
 
+> I use this plugin to keep coding agents fast. Small functions, explicit boundaries, runtime evidence, and direct imports reduce the context an agent must reconstruct before it can make a safe change. The same constraints make code easier to isolate and test for humans.
+
 Every rule has a passing example in [Rule reference and examples](#rule-reference-and-examples), with detailed invalid cases and options on its linked rule page.
 
 The design draws from [TigerStyle](https://tigerstyle.dev/), [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase), [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves), and [Composition is all you need](https://www.youtube.com/watch?v=4KvbVq3Eg5w). See [References and attribution](docs/references.md) for the policy sources.
@@ -62,23 +64,43 @@ Presets are flat-config arrays and fall into two groups:
 
 These patterns are adapted from two production applications that enable the rules as errors. Both are private, so product-specific names and domain details are redacted. The examples progress from TypeScript, through frontend/backend libraries and JSX composition, to React, and finally React Native. The complete rule index follows the same order.
 
-### TypeScript: prefer one named input and assert the result
+### TypeScript: keep logic small enough to test in isolation
 
-This decision helper uses an object parameter instead of several positional arguments, satisfying a stricter `max-function-parameters` configuration. Its postconditions make the intended invariants visible to `require-assertions`.
+`max-function-lines` prevents a workflow from becoming a context-heavy mini-application. This redacted production helper has one decision, explicit preconditions and postconditions, and a focused test surface.
 
 ```ts
-export function actionIsAllowed({ draft, busy, offline }: ActionState): boolean {
-  const allowed = draft.trim().length > 0 && !busy && !offline;
+export function maximumPayloadBytes(kind: PayloadKind, mimeType: string): number {
+  assert(mimeType.length > 0, "maximumPayloadBytes requires a MIME type");
 
-  assert(!offline || !allowed, "offline actions must be rejected");
-  assert(draft.trim().length > 0 || !allowed, "empty actions must be rejected");
-  return allowed;
+  const result = kind === "thumbnail" ? LIMITS.thumbnail : LIMITS.original;
+
+  assert(Number.isInteger(result), "payload limit must be a whole number");
+  assert(result > 0, "payload limit must be positive");
+  return result;
 }
 ```
 
-### Frontend/backend library: validate variants instead of casting
+An agent can understand and test this function without loading upload orchestration, storage, or UI code. When logic approaches the configured line limit, extract a named decision with its own contract instead of disabling the rule.
 
-An Effect Schema boundary replaces unchecked parsing and casts with runtime evidence. The same pattern works in browser clients, Node.js services, workers, and CLIs.
+### TypeScript: replace confident casts with runtime evidence
+
+`no-unsafe-type-assertions` stops an agent from silencing uncertainty with `as` or `!`. A production event boundary replaced a double cast with a discriminated runtime schema:
+
+```ts
+const streamEventSchema: z.ZodType<StreamEvent> = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("started"), id: idSchema }),
+  z.object({ type: z.literal("delta"), text: z.string() }),
+  z.object({ type: z.literal("completed"), result: resultSchema }),
+]);
+
+const event = streamEventSchema.parse(input);
+```
+
+Tests can now prove rejection behavior for malformed input. Agents see the accepted variants in executable code instead of guessing whether a cast was justified.
+
+### Frontend/backend library: validate JSON at the boundary
+
+An Effect Schema boundary validates parsed JSON immediately. The same pattern works in browser clients, Node.js services, workers, and CLIs.
 
 ```ts
 const StreamEvent = Schema.Union(
