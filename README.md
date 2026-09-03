@@ -317,6 +317,8 @@ export default [
 
 This preset is intentionally demanding. A computed return should normally be assigned to a local binding, checked with a postcondition, and then returned. Statically evident returns such as literals, JSX, and function values do not need a separate return assertion, but the function still needs the two assertions required by `require-assertions`. For production applications, configure `require-contract-assertions` with the shared eligibility options documented on its rule page so framework callbacks and rendering glue do not receive low-value contract assertions.
 
+For ordinary production configuration, keep `require-assertions` as the broad density rule, use `require-contract-assertions` only for domain/application contract owners, and use `no-unasserted-return` as a lighter alternative in complementary scopes. Do not run the two specialized rules over the same functions. See [Assertion rule scoping](docs/assertion-scoping.md) for a copyable flat configuration with disjoint file globs.
+
 ### React: design tokens, including React Native
 
 `no-raw-design-values` prohibits explicitly configured string or numeric values only when they appear in configured object properties. Consumers provide the semantic meaning: which values and properties belong together, their approved token replacements, token files, and narrow exceptions.

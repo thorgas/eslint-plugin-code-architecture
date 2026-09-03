@@ -2,6 +2,8 @@
 
 Disallows returning a call's result directly without asserting that specific result. The intended shape is **assign, assert, return**:
 
+This is the lighter specialized policy for scopes that intentionally do not require complete parameter and return contracts. Do not apply it to functions already governed by `require-contract-assertions`. Keep the broad `require-assertions` density rule in both scopes; see [Assertion rule scoping](../assertion-scoping.md).
+
 ```ts
 async function loadProfile(id: string): Promise<Profile> {
   const url = buildUrl(id);

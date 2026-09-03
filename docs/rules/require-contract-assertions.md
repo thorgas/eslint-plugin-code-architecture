@@ -4,6 +4,8 @@ Requires semantic runtime assertions for every eligible function parameter bindi
 
 This is a narrower companion to `require-assertions`, not a replacement. `require-assertions` establishes broad assertion density; this rule proves specific preconditions and postconditions in domain and application functions that own meaningful contracts. The `agentReadiness` preset deliberately applies both exhaustively. Production applications should use the eligibility options below instead of adding ceremonial assertions to framework callbacks and rendering code.
 
+Do not apply `no-unasserted-return` to the same functions. Use that rule as a lighter alternative in complementary scopes; see [Assertion rule scoping](../assertion-scoping.md).
+
 Invalid:
 
 ```ts
