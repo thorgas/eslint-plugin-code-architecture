@@ -50,7 +50,7 @@ test("no-unasserted-return accepts assign, assert, return", () => {
   expect(messages).toHaveLength(0);
 });
 
-test("no-unasserted-return accepts a returned call when the function asserts elsewhere", () => {
+test("no-unasserted-return does not let an unrelated assertion cover a returned call", () => {
   const messages = lintRule({
     code: `
       function totalFor(entries, unit) {
@@ -62,7 +62,7 @@ test("no-unasserted-return accepts a returned call when the function asserts els
     ruleName: "no-unasserted-return",
   });
 
-  expect(messages).toHaveLength(0);
+  expect(messages).toHaveLength(1);
 });
 
 test("no-unasserted-return leaves single-statement delegates alone by default", () => {
@@ -96,7 +96,7 @@ test("no-unasserted-return checks delegates when ignoreDelegates is off", () => 
   expect(messages).toHaveLength(2);
 });
 
-test("no-unasserted-return only exempts delegates with a named callee", () => {
+test("no-unasserted-return treats a computed single-call wrapper as a delegate", () => {
   const messages = lintRule({
     code: `
       function dispatch(handler, value) {
@@ -107,7 +107,7 @@ test("no-unasserted-return only exempts delegates with a named callee", () => {
     ruleName: "no-unasserted-return",
   });
 
-  expect(messages).toHaveLength(1);
+  expect(messages).toHaveLength(0);
 });
 
 test("no-unasserted-return attributes assertions to the function that holds them", () => {
@@ -144,7 +144,7 @@ test("no-unasserted-return ignores returns of plain values and constructions", (
   expect(messages).toHaveLength(0);
 });
 
-test("no-unasserted-return honours configured assertion helper names", () => {
+test("no-unasserted-return does not let a configured helper cover another return", () => {
   const messages = lintRule({
     code: `
       function loadProfile(id) {
@@ -158,5 +158,71 @@ test("no-unasserted-return honours configured assertion helper names", () => {
     ruleName: "no-unasserted-return",
   });
 
+  expect(messages).toHaveLength(1);
+});
+
+test("no-unasserted-return finds calls in conditional and logical returns", () => {
+  const messages = lintRule({
+    code: `
+      function load(enabled, cached) {
+        const source = enabled ? "remote" : "local";
+        return enabled ? fetchRemote(source) : cached || fetchLocal(source);
+      }
+    `,
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+  expect(messages).toHaveLength(2);
+});
+
+test("no-unasserted-return reuses production eligibility options", () => {
+  const messages = lintRule({
+    code: `
+      const select = (state) => state.value;
+      const render = (items) => items.map((item) => format(item));
+      const restart = () => actor.send({ type: "RESTART" });
+    `,
+    options: [{
+      ignoreDelegates: true,
+      ignoreDirectCallbacks: true,
+      ignoreNoInputClosures: true,
+      minimumStatements: 2,
+    }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
   expect(messages).toHaveLength(0);
+});
+
+test("no-unasserted-return structurally recognizes a namespace-imported assertion and does not flag returning it directly", () => {
+  const messages = lintRule({
+    code: `
+      import * as a from "assert";
+      function checkAndReturn(value) {
+        doSomethingElse();
+        return a.ok(value);
+      }
+    `,
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unasserted-return still flags returning a call from an unrelated import under an assert-like alias", () => {
+  const messages = lintRule({
+    code: `
+      import { isEqual as checkEqual } from "lodash";
+      function compare(left, right) {
+        doSomethingElse();
+        return checkEqual(left, right);
+      }
+    `,
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("unassertedReturn");
 });

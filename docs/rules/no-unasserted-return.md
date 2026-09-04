@@ -1,6 +1,8 @@
 # no-unasserted-return
 
-Disallows returning a call's result directly from a function that contains no assertion. The intended shape is **assign, assert, return**:
+Disallows returning a call's result directly without asserting that specific result. The intended shape is **assign, assert, return**:
+
+This is the lighter specialized policy for scopes that intentionally do not require complete parameter and return contracts. Do not apply it to functions already governed by `require-contract-assertions`. Keep the broad `require-assertions` density rule in both scopes; see [Assertion rule scoping](../assertion-scoping.md).
 
 ```ts
 async function loadProfile(id: string): Promise<Profile> {
@@ -13,18 +15,18 @@ async function loadProfile(id: string): Promise<Profile> {
 
 `return f(...)` and `return await f(...)` smuggle a value out of a function without the function ever looking at it. Binding the result to a local first creates the place where its shape can be asserted — the same discipline `require-assertions` teaches, applied to the one statement that most often escapes it. A returned identifier, literal, or object built in place is not reported: those already passed through the function's own hands.
 
-A function is reported only when it holds **no** assertion at all. One assertion anywhere in the body — a precondition on the inputs, a postcondition before an earlier return — is evidence the function participates in the discipline, and the rule does not demand that every single return be individually asserted:
+A precondition or an assertion covering another return does not prove the returned call's result. This is therefore still invalid:
 
 ```ts
 function totalFor(entries: ReadonlyArray<Entry>, unit: string): number {
   assert(unit.length > 0, "totalFor: unit must be named");
-  return sumInUnit(entries, unit); // accepted: the function asserts its input
+  return sumInUnit(entries, unit); // reported: the result has no postcondition
 }
 ```
 
 ## Options
 
-Default assertion names are `assert`, `assertDefined`, `nodeAssert`, and `nodeAssert.ok`; configure `assertionNames` for application helpers, as with `require-assertions`.
+Assertion calls are recognized structurally, as with `require-assertions`: a call to an import from an assertion module (`assert`, `node:assert`, `invariant`, and similar, including namespace/default imports, member access, and one level of local aliasing), or a call to a same-file function whose return type is a TypeScript `asserts` predicate, is never treated as an unasserted returned value. `assertionNames` (default `assert`, `assertDefined`, `nodeAssert`, `nodeAssert.ok`) remains a textual fallback for project-specific helpers that use neither pattern.
 
 `ignoreDelegates` (default `true`) exempts a function whose whole body is the one return — an expression-bodied arrow, or a block with a single statement:
 
@@ -33,6 +35,10 @@ const loadProfile = (id: string) => fetchJson(buildUrl(id));
 ```
 
 A delegate computes nothing of its own, so the named callee carries the invariants and the wrapper has nothing true to assert — the same reasoning behind `require-assertions`' thin-delegate guidance. Set `ignoreDelegates: false` to check delegates too.
+
+Conditional and logical returns are inspected path by path, so both calls in `return ready ? loadFresh() : cached || loadFallback()` are reported.
+
+The rule shares production eligibility options with `require-assertions`: `minimumStatements`, `ignoreDirectCallbacks`, `directCallbackMaxStatements`, `ignoreJSXCallbacks`, `ignoreJSXComponents`, `ignoreNoInputClosures`, `ignoreReactHooks`, `ignoreTrivialConstructors`, and `ignoreDelegates`. `ignoreAssertionHelpers` excludes recognized assertion-helper implementations.
 
 Assertions inside a nested function count only toward that nested function, matching `require-assertions`' scoping.
 

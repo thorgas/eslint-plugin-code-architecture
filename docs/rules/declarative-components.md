@@ -8,9 +8,13 @@ Keeps components on two paths: read/display data and send events. By default it:
 - permits at most one `useMachine`, `useActor`, or `useActorRef` call;
 - bans nested function declarations and `try` statements inside components.
 
-Functions whose names match `^[A-Z]` are treated as components. Configure `componentNamePattern`, `forbiddenHooks`, `actorHooks`, `maximumActorHooks`, `forbidInlineFunctions`, or `forbidTryStatements` for another UI convention.
+A function is treated as a component only when it both matches `componentNamePattern` (default `^[A-Z]`) and actually returns JSX. A capitalized function that never renders JSX — a selector, a plain computation, a hook-like helper — is not a component and is left alone, even if it calls a forbidden hook. Configure `componentNamePattern`, `forbiddenHooks`, `actorHooks`, `maximumActorHooks`, `forbidInlineFunctions`, or `forbidTryStatements` for another UI convention.
 
-Invalid: `function Screen() { const [open] = useState(false) }`. Valid: a component that reads a machine snapshot and calls `send`.
+`forbidInlineFunctions` only reports a nested function that is itself declared as a statement or bound to a local variable inside a component — a function declaration, or `const handler = () => ...`. A function passed directly as a JSX attribute value (`onPress={() => send("x")}`), as a call argument (`items.map((item) => <Row />)`, `useCallback(() => {...}, [])`), or in any other expression position is not independently named or reused, so it is not reported.
+
+Invalid: `function Screen() { const [open] = useState(false); return <div>{open}</div>; }`. Valid: a component that reads a machine snapshot and calls `send`.
+
+Known limits: JSX detection walks the function's own body (including nested functions), so a component that only returns JSX conditionally deep inside a callback is still recognized; a function that builds and returns a JSX-typed value without a literal `<Tag>` or `<>` in its own source is not.
 
 ## Production-derived example
 

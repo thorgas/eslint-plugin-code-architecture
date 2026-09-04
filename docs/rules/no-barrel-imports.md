@@ -17,6 +17,8 @@ Invalid: `import { Effect } from "effect"`. Valid: `import * as Effect from "eff
 
 `allowedBarrels` takes path globs and exempts a matching import before any other check. Relative sources are resolved against the importing file and matched as a project-relative path; bare specifiers are matched as written. Use it for barrels a consumer deliberately keeps, not as a blanket escape hatch.
 
+`checkLocalIndex` also catches a relative specifier whose text never mentions `index`, such as `import x from "./feature"` or `import x from "."`, when that specifier resolves to a directory containing an `index.{js,jsx,ts,tsx,mjs,cjs,mts,cts}` file. This detection is filesystem-backed: it resolves the specifier relative to the linted file's own path (`context.filename`) and checks the filesystem, so it is deterministic per file and requires no extra configuration.
+
 ## Production-derived example
 
 A redacted worker imported one helper through a local feature barrel and one

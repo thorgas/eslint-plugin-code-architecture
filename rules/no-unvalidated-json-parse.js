@@ -1,3 +1,5 @@
+import { minimatch } from "minimatch";
+
 const calleeName = (node) => {
   if (node.type === "Identifier") return node.name;
   if (node.type === "CallExpression") return calleeName(node.callee);
@@ -9,6 +11,13 @@ const calleeName = (node) => {
 };
 
 const isJsonParse = (node) => calleeName(node.callee) === "JSON.parse";
+
+const isValidationCall = (name, validationCalls) => {
+  if (!name) return false;
+  return validationCalls.some((pattern) =>
+    minimatch(name, pattern, { dot: true, matchBase: false }),
+  );
+};
 
 const returnedExpression = (node) => {
   if (
@@ -45,7 +54,7 @@ const callsValidationWith = (
 
     if (
       current.type === "CallExpression" &&
-      validationCalls.has(calleeName(current.callee)) &&
+      isValidationCall(calleeName(current.callee), validationCalls) &&
       current.arguments.some(
         (argument) =>
           argument.type === "Identifier" && argument.name === parameterName,
@@ -179,11 +188,39 @@ const findVariable = (scope, name) => {
   return undefined;
 };
 
+const isGuardCondition = (identifier) => {
+  let child = identifier;
+  let current = identifier.parent;
+
+  while (current) {
+    if (current.type === "IfStatement" && current.test === child) return true;
+    if (current.type === "ConditionalExpression" && current.test === child) {
+      return true;
+    }
+    if (current.type === "WhileStatement" && current.test === child) {
+      return true;
+    }
+    if (current.type === "UnaryExpression" && current.operator === "!") {
+      child = current;
+      current = current.parent;
+      continue;
+    }
+    if (current.type === "LogicalExpression") {
+      child = current;
+      current = current.parent;
+      continue;
+    }
+    return false;
+  }
+
+  return false;
+};
+
 const isValidationArgument = (identifier, validationCalls) => {
   const call = identifier.parent;
   return (
     call?.type === "CallExpression" &&
-    validationCalls.has(calleeName(call.callee)) &&
+    isValidationCall(calleeName(call.callee), validationCalls) &&
     call.arguments.includes(identifier)
   );
 };
@@ -200,10 +237,20 @@ const hasSingleValidatedReference = (node, validationCalls, sourceCode) => {
   const references = variable?.references.filter(
     (reference) => reference.identifier !== declarator.id,
   );
+  if (!references || references.length === 0) return false;
 
-  return (
-    references?.length === 1 &&
-    isValidationArgument(references[0].identifier, validationCalls)
+  const validatingReference = references.find((reference) =>
+    isValidationArgument(reference.identifier, validationCalls),
+  );
+  if (!validatingReference) return false;
+
+  const validatingStart = validatingReference.identifier.range[0];
+
+  return references.every(
+    (reference) =>
+      reference === validatingReference ||
+      (isGuardCondition(reference.identifier) &&
+        reference.identifier.range[0] < validatingStart),
   );
 };
 
@@ -214,7 +261,7 @@ const hasValidationAncestor = (node, validationCalls, maximumDepth) => {
   while (current && depth < maximumDepth) {
     if (
       current.type === "CallExpression" &&
-      validationCalls.has(calleeName(current.callee))
+      isValidationCall(calleeName(current.callee), validationCalls)
     ) {
       return true;
     }
@@ -255,7 +302,7 @@ const rule = {
   },
   create(context) {
     const options = context.options[0] ?? {};
-    const validationCalls = new Set(
+    const validationCalls =
       options.validationCalls ?? [
         "Schema.decode",
         "Schema.decodeSync",
@@ -263,8 +310,16 @@ const rule = {
         "Schema.decodeUnknownSync",
         "Schema.parseJson",
         "Schema.transform",
-      ],
-    );
+        "*.parse",
+        "*.safeParse",
+        "*.parseAsync",
+        "*.safeParseAsync",
+        "*.decode",
+        "*.decodeUnknownSync",
+        "*.decodeUnknown",
+        "*.assert",
+        "*.validate",
+      ];
     const maximumDepth = options.maximumAncestorDepth ?? 12;
     const sourceCode = context.sourceCode;
     const visitorKeys = sourceCode.visitorKeys;

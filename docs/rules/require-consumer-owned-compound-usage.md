@@ -13,6 +13,8 @@ Requires an imported or same-file compound boundary to be open and to contain at
 
 Self-closing boundaries and boundaries containing only a fixed layout component are rejected. Nested, repeated, conditional, and reordered same-namespace parts are accepted. Foreign compound components may appear beneath the boundary.
 
+A local namespace is also registered from `Object.assign(Root, { Item, Trigger })`, so `const Menu = Object.assign(Root, { Item });` is recognized the same way a `{ Root, Item }` object literal is.
+
 Use `boundaryMembers` for another boundary convention and `headlessCompounds` for intentional actor/store-backed Providers that do not require same-namespace descendants. `ignoredNamespacePattern` excludes infrastructure namespaces and defaults to `Context$`.
 
 The rule uses same-file syntax and imported binding names. It does not prove that a descendant reads shared state or resolve a compound namespace through re-export graphs.

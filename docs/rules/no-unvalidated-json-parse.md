@@ -9,9 +9,9 @@ The rule also accepts two conservative parse-then-validate forms:
 - A local parsed value with exactly one reference, when that reference is the argument of an approved decoder.
 - An `Effect.try` result validated by `Schema` in an `Effect.flatMap` pipeline or immediately after binding.
 
-A parsed value used before validation, used more than once, or hidden inside a parser function is still rejected. This keeps the rule local and deterministic without treating arbitrary later validation as proof that earlier uses were safe.
+A parsed value used before validation, used more than once, or hidden inside a parser function is still rejected. This keeps the rule local and deterministic without treating arbitrary later validation as proof that earlier uses were safe. A reference used only as a guard condition before validation (the `test` of an `if`, a ternary, a `while`, or an operand of a `&&`/`||`/`??` chain feeding one of those) is allowed in addition to the single validating reference, so `const raw = JSON.parse(s); if (!raw) throw new Error(); return Schema.decodeUnknownSync(T)(raw);` is accepted.
 
-Configure `validationCalls` for Zod, Valibot, ArkType, or an application decoder. `maximumAncestorDepth` bounds how far the rule searches for the enclosing validation call.
+Configure `validationCalls` for Zod, Valibot, ArkType, or an application decoder. Entries are matched as minimatch-style globs against the callee's full dotted name, so a project can allow any schema variable's validator without enumerating every schema: `*.parse`, `*.safeParse`, `Schema.*`. The defaults include Effect Schema's decoders plus `*.parse`, `*.safeParse`, `*.parseAsync`, `*.safeParseAsync`, `*.decode`, `*.decodeUnknownSync`, `*.decodeUnknown`, `*.assert`, and `*.validate`, which covers `MySchema.parse(JSON.parse(x))`-style Zod usage out of the box. `maximumAncestorDepth` bounds how far the rule searches for the enclosing validation call.
 
 ## Production-derived example
 

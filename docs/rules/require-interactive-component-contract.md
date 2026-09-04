@@ -2,20 +2,54 @@
 
 Requires configured functional interactive components to expose statically visible accessibility, disabled, press-feedback, and content signals.
 
+The minimal recommended config is just:
+
+```js
+"code-architecture/require-interactive-component-contract": "error"
+```
+
+With no options object, the rule has no `componentNames` allow-list, so it
+detects interactive primitives structurally: a function component whose
+rendered root element carries an `onPress`/`onClick`/`onPressIn` attribute, or
+whose root is a single wrapper around exactly one such element. Screens and
+sections that merely contain buttons are not primitives and are not checked;
+the primitives they compose are. All attribute-name options below are optional
+overrides — pass them only to customize the defaults, which already cover
+common React Native and DOM conventions:
+
 ```js
 "code-architecture/require-interactive-component-contract": ["error", {
-  componentNames: ["Button", "IconButton"],
+  componentNames: ["Button", "IconButton"], // optional allow-list; omit to auto-detect interactive components
   roleAttributes: ["accessibilityRole", "role"],
-  stateAttributes: ["accessibilityState", "aria-disabled"],
-  disabledProps: ["disabled"],
-  disabledAttributes: ["disabled", "aria-disabled"],
-  feedbackAttributes: ["android_ripple", "data-pressed"],
-  feedbackStateNames: ["pressed", "active"],
-  contentProps: ["children"],
+  stateAttributes: ["accessibilityState", "aria-disabled", "aria-pressed", "aria-checked", "aria-selected"],
+  disabledProps: ["disabled", "isDisabled"],
+  disabledAttributes: ["disabled", "isDisabled"],
+  feedbackAttributes: ["style", "rippleColor", "android_ripple", "activeOpacity", "underlayColor"],
+  feedbackStateNames: ["pressed", "hovered", "focused", "active"],
+  contentProps: ["children", "label", "title", "text"],
 }]
 ```
 
-The defaults are the values shown above. A complete component must render a role attribute, a state attribute, wire a configured disabled prop into a disabled/state attribute, expose configured press feedback, and render configured content.
+A complete component must render a role attribute, a state attribute, wire a
+configured disabled prop into a disabled/state attribute, expose configured
+press feedback, and render configured content.
+
+### Prop forwarding
+
+A `JSXSpreadAttribute` forwarding onto the interactive element (e.g.
+`<TouchableOpacity {...rest} />`, `<button {...props} />`) satisfies role,
+state, and disabled forwarding simultaneously. This is recognized when the
+spread argument is the props identifier itself, a rest element pulled from
+destructured props, or an identifier that can be traced back to one of those
+through one level of local aliasing (e.g. `const forwarded = rest;`).
+
+A `style` attribute given a function value whose parameter destructures one of
+the configured `feedbackStateNames` (e.g. `style={({ pressed }) => [...]}`,
+the common Pressable pattern) counts as press feedback.
+
+The rule also follows one level of local `const` aliasing when checking
+whether an attribute traces back to a disabled prop, e.g.
+`const isDisabled = disabled; ... aria-disabled={isDisabled}`.
 
 The rule checks syntax, not runtime behavior. It cannot prove visual contrast, event semantics, or that a handler changes state. It supports functional components with statically identifiable names and does not inspect imported implementations.
 

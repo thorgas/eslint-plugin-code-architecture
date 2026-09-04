@@ -1,18 +1,14 @@
-const calleeName = (node) => {
-  if (node.type === "Identifier") return node.name;
-  if (node.type !== "MemberExpression" || node.computed) return undefined;
-
-  const objectName = calleeName(node.object);
-  if (!objectName || node.property.type !== "Identifier") return undefined;
-  return `${objectName}.${node.property.name}`;
-};
+import {
+  assertionNameSet,
+  isAssertionCall,
+} from "./assertion-helpers.js";
 
 const isFunction = (node) =>
   node.type === "ArrowFunctionExpression" ||
   node.type === "FunctionDeclaration" ||
   node.type === "FunctionExpression";
 
-const functionName = (node) => {
+export const functionName = (node) => {
   if (
     node.parent?.type === "VariableDeclarator" &&
     node.parent.init === node &&
@@ -72,6 +68,22 @@ const isDirectCallback = (node, maxStatements) => {
 
   if (node.body.type !== "BlockStatement") return true;
   return node.body.body.length <= maxStatements;
+};
+
+const unwrapDelegateCall = (node) =>
+  node?.type === "AwaitExpression" ? node.argument : node;
+
+const isDelegate = (node) => {
+  let expression = node.body;
+  if (expression.type === "BlockStatement") {
+    if (expression.body.length !== 1) return false;
+    const statement = expression.body[0];
+    if (statement.type === "ReturnStatement") expression = statement.argument;
+    else if (statement.type === "ExpressionStatement") {
+      expression = statement.expression;
+    } else return false;
+  }
+  return unwrapDelegateCall(expression)?.type === "CallExpression";
 };
 
 const isSuperCallStatement = (statement) =>
@@ -198,7 +210,8 @@ const returnsJSX = (node) => {
 };
 
 /** The configured shapes that carry no invariant of their own. */
-const isExempt = (node, options) => {
+export const isFunctionExempt = (node, options) => {
+  if (options.ignoreDelegates && isDelegate(node)) return true;
   if (options.ignoreJSXCallbacks && isJSXCallback(node)) return true;
   if (options.ignoreNoInputClosures && isNoInputClosure(node)) return true;
   if (options.ignoreReactHooks && isReactHook(node)) return true;
@@ -233,6 +246,7 @@ const rule = {
         additionalProperties: false,
         properties: {
           ignoreDirectCallbacks: { type: "boolean", default: false },
+          ignoreDelegates: { type: "boolean", default: false },
           directCallbackMaxStatements: {
             type: "integer",
             minimum: 0,
@@ -261,14 +275,8 @@ const rule = {
     const options = context.options[0] ?? {};
     const minimum = options.minimum ?? 2;
     const minimumStatements = options.minimumStatements ?? 1;
-    const assertionNames = new Set(
-      options.assertionNames ?? [
-        "assert",
-        "assertDefined",
-        "nodeAssert",
-        "nodeAssert.ok",
-      ],
-    );
+    const assertionNames = assertionNameSet(options.assertionNames);
+    const sourceCode = context.sourceCode;
     const functionStack = [];
 
     const enterFunction = (node) => {
@@ -292,7 +300,7 @@ const rule = {
           enclosing.count += current.count;
         }
       }
-      if (isExempt(node, options)) return;
+      if (isFunctionExempt(node, options)) return;
 
       const statementCount =
         node.body.type === "BlockStatement" ? node.body.body.length : 1;
@@ -313,8 +321,7 @@ const rule = {
         const current = functionStack.at(-1);
         if (!current) return;
 
-        const name = calleeName(node.callee);
-        if (name && assertionNames.has(name)) current.count += 1;
+        if (isAssertionCall(node, assertionNames, sourceCode)) current.count += 1;
       },
       ThrowStatement(node) {
         if (!options.countGuardedThrows) return;
