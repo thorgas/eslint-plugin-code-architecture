@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0-alpha.5
+
+- Recognize `assertWorkletInvariant` as a built-in assertion helper across the assertion rules. This gives serialized Reanimated worklets an explicit invariant convention without requiring every consumer to repeat an `assertionNames` exception.
+
 ## 0.6.0-alpha.4
 
 - Detect assertions structurally in `require-assertions`, `require-contract-assertions`, and `no-unasserted-return`: any call that resolves to an import from an assertion module (`assert`, `node:assert`, `tiny-invariant`, or any path ending in `assert`/`asserts`/`assertions`/`invariant`), a one-level local alias of it, or a same-file function with a TypeScript `asserts` predicate counts without configuration. `assertionNames` remains a textual fallback.

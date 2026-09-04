@@ -26,7 +26,7 @@ function totalFor(entries: ReadonlyArray<Entry>, unit: string): number {
 
 ## Options
 
-Assertion calls are recognized structurally, as with `require-assertions`: a call to an import from an assertion module (`assert`, `node:assert`, `invariant`, and similar, including namespace/default imports, member access, and one level of local aliasing), or a call to a same-file function whose return type is a TypeScript `asserts` predicate, is never treated as an unasserted returned value. `assertionNames` (default `assert`, `assertDefined`, `nodeAssert`, `nodeAssert.ok`) remains a textual fallback for project-specific helpers that use neither pattern.
+Assertion calls are recognized structurally, as with `require-assertions`: a call to an import from an assertion module (`assert`, `node:assert`, `invariant`, and similar, including namespace/default imports, member access, and one level of local aliasing), or a call to a same-file function whose return type is a TypeScript `asserts` predicate, is never treated as an unasserted returned value. `assertionNames` (default `assert`, `assertDefined`, `assertWorkletInvariant`, `nodeAssert`, `nodeAssert.ok`) remains a textual fallback for project-specific helpers that use neither pattern. The worklet helper is a built-in convention because worklet serialization cannot carry an imported Node assertion or TypeScript `asserts` predicate.
 
 `ignoreDelegates` (default `true`) exempts a function whose whole body is the one return — an expression-bodied arrow, or a block with a single statement:
 
