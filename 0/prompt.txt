@@ -192,3 +192,41 @@ All four claims were verified true via probe tests before fixing, then fixed. No
 No claims were found false; nothing was left unfixed within the given scope.</result>
 <usage><subagent_tokens>137941</subagent_tokens><tool_uses>55</tool_uses><duration_ms>424315</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a043205b4edb53fe7</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-timhorgas-git-eslint-plugin-code-architecture/b5732bd4-2e0c-49fd-91a7-5e1babb4708d/tasks/a043205b4edb53fe7.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix design-system rules" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Lint clean on scoped files.
+
+## Report
+
+Implemented all 5 rule fixes via a delegated agent, restricted to the allowed files.
+
+**Files changed** (rules, tests, docs — all within scope):
+- `rules/require-interactive-component-contract.js` + `tests/require-interactive-component-contract.test.js` + `docs/rules/require-interactive-component-contract.md`
+- `rules/no-raw-design-values.js` + `tests/no-raw-design-values.test.js` + `docs/rules/no-raw-design-values.md`
+- `rules/no-raw-design-properties.js` + `tests/no-raw-design-properties.test.js` + `docs/rules/no-raw-design-properties.md`
+- `rules/prefer-design-system-components.js` + `tests/prefer-design-system-components.test.js` + `docs/rules/prefer-design-system-components.md`
+- `rules/no-design-identity-overrides.js` + `tests/no-design-identity-overrides.test.js` + `docs/rules/no-design-identity-overrides.md`
+- `rules/design-system-helpers.js` (shared object-literal resolution helper extracted here, reused by no-raw-design-values and no-design-identity-overrides)
+
+**Claims verified per item:**
+1. require-interactive-component-contract: (a) spread-forwarding not recognized — **true, fixed**. (b) missing defaults / required componentNames — **true, fixed** (schema no longer requires componentNames; full default attribute lists added; onPress/onClick/onPressIn heuristic when componentNames omitted). (c) Pressable `style={({pressed}) =&gt; ...}` feedback — **probed false, already worked**; added regression test only. (d) one-level disabled aliasing — **true, fixed**.
+2. no-raw-design-values: pattern-based `values` entries, default color-like hex/rgb/hsl detection, `let`-binding resolution — **all implemented and tested**.
+3. no-raw-design-properties: ternary/logical raw-literal branches — **fixed**, reports once per property.
+4. prefer-design-system-components: `import * as RN` + `&lt;RN.Component/&gt;` — **fixed** via namespace-import resolution.
+5. no-design-identity-overrides: `style={identifier}` resolving to a const object literal — **fixed**, reusing the new shared helper in design-system-helpers.js.
+
+One pre-existing test fixture in require-interactive-component-contract had to be adjusted because the new `contentProps` default (`label` added) made the original fixture legitimately pass; assertions were kept, only the fixture content changed.
+
+**Verification:** `bun test` on the five affected test files — 49 pass, 0 fail. `bunx eslint` on the six scoped rule/helper files — 0 errors. Every "## Production-derived example" doc section confirmed still present (1 occurrence each, unchanged).
+
+**Note:** the working tree also shows unrelated modifications to many other rules/tests/docs outside the allowed scope (e.g. `no-barrel-files.js`, `require-assertions.js`) — these come from other concurrent work in this shared repo checkout, not from this task. I left them untouched and did not commit anything, per instructions.</result>
+<usage><subagent_tokens>65675</subagent_tokens><tool_uses>9</tool_uses><duration_ms>696108</duration_ms></usage>
+</task-notification>
