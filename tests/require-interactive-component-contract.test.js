@@ -205,3 +205,39 @@ test("require-interactive-component-contract follows one level of aliasing for t
 
   expect(messages).toHaveLength(0);
 });
+
+test("require-interactive-component-contract trusts declared contract components without excusing wrapper props", () => {
+  const complete = lintRule({
+    code: `function ActionButton({ children, disabled, label, onPress }) {
+      return <Button.Root disabled={disabled} label={label} onPress={onPress}>{children}</Button.Root>;
+    }`,
+    filename: "src/features/reminders/ui/action-button.tsx",
+    options: [{ contractComponents: ["Button.Root"] }],
+    rule,
+    ruleName: "require-interactive-component-contract",
+  });
+  const incomplete = lintRule({
+    code: `function ActionButton({ label, onPress }) {
+      return <Button.Root label={label} onPress={onPress}>{label}</Button.Root>;
+    }`,
+    filename: "src/features/reminders/ui/action-button.tsx",
+    options: [{ contractComponents: ["Button.Root"] }],
+    rule,
+    ruleName: "require-interactive-component-contract",
+  });
+  const missingContent = lintRule({
+    code: `function ActionButton({ disabled, onPress }) {
+      return <Button.Root disabled={disabled} label="Save" onPress={onPress}>Save</Button.Root>;
+    }`,
+    filename: "src/features/reminders/ui/action-button.tsx",
+    options: [{ contractComponents: ["Button.Root"] }],
+    rule,
+    ruleName: "require-interactive-component-contract",
+  });
+
+  expect(complete).toHaveLength(0);
+  expect(incomplete).toHaveLength(1);
+  expect(incomplete[0]?.message).toContain("disabled behavior");
+  expect(missingContent).toHaveLength(1);
+  expect(missingContent[0]?.message).toContain("configurable content");
+});

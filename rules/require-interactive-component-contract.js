@@ -4,7 +4,11 @@ import {
   referencedPropName,
   walkNodes,
 } from "./composition-helpers.js";
-import { jsxAttributeExpression, jsxAttributeName } from "./design-system-helpers.js";
+import {
+  jsxAttributeExpression,
+  jsxAttributeName,
+  jsxElementName,
+} from "./design-system-helpers.js";
 
 const stringArray = {
   type: "array",
@@ -84,6 +88,7 @@ const rendersInteractiveRoot = (node, sourceCode) =>
 
 const configuredContract = (options = {}) => ({
   componentNames: new Set(options.componentNames ?? []),
+  contractComponents: new Set(options.contractComponents ?? []),
   contentProps: new Set(
     options.contentProps ?? ["children", "label", "title", "text"],
   ),
@@ -198,6 +203,13 @@ const inspectAttribute = (node, state, props, sourceCode, extra) => {
       (current.type === "Identifier" ? propAliases.get(current.name) : undefined);
     if (
       prop &&
+      contract.contentProps.has(attribute) &&
+      contract.contentProps.has(prop)
+    ) {
+      state.hasContent = true;
+    }
+    if (
+      prop &&
       contract.disabledProps.has(prop) &&
       (contract.disabledAttributes.has(attribute) ||
         contract.stateAttributes.has(attribute))
@@ -226,6 +238,16 @@ const analyzeComponent = (node, sourceCode, contract) => {
   };
 
   state.hasInteractiveHandler = rendersInteractiveRoot(node, sourceCode);
+  const delegatesContract = returnedJsxRoots(node, sourceCode).some(
+    (root) =>
+      root.type === "JSXElement" &&
+      contract.contractComponents.has(jsxElementName(root.openingElement.name)),
+  );
+  if (delegatesContract) {
+    state.hasFeedback = true;
+    state.hasRole = true;
+    state.hasState = true;
+  }
 
   walkNodes(node.body, sourceCode, (current) => {
     const referenced = referencedPropName(current, props);
@@ -293,6 +315,7 @@ const rule = {
         additionalProperties: false,
         properties: {
           componentNames: stringArray,
+          contractComponents: stringArray,
           contentProps: stringArray,
           disabledAttributes: stringArray,
           disabledProps: stringArray,

@@ -20,6 +20,7 @@ common React Native and DOM conventions:
 ```js
 "code-architecture/require-interactive-component-contract": ["error", {
   componentNames: ["Button", "IconButton"], // optional allow-list; omit to auto-detect interactive components
+  contractComponents: ["Button.Root", "SettingsActionRow"], // imported primitives that already own role/state/feedback
   roleAttributes: ["accessibilityRole", "role"],
   stateAttributes: ["accessibilityState", "aria-disabled", "aria-pressed", "aria-checked", "aria-selected"],
   disabledProps: ["disabled", "isDisabled"],
@@ -33,6 +34,25 @@ common React Native and DOM conventions:
 A complete component must render a role attribute, a state attribute, wire a
 configured disabled prop into a disabled/state attribute, expose configured
 press feedback, and render configured content.
+
+### Contract component delegation
+
+Use `contractComponents` when a feature wrapper renders an imported primitive
+that already owns the role, accessibility state, and press feedback. The rule
+then inherits only those three signals from the named JSX root. The wrapper
+must still accept and forward its own configured content and disabled props;
+declaring a trusted primitive does not make a fixed label or missing disabled
+API pass.
+
+```tsx
+function ActionButton({ children, disabled = false, label, onPress }) {
+  return (
+    <Button.Root disabled={disabled} label={label} onPress={onPress}>
+      {children}
+    </Button.Root>
+  );
+}
+```
 
 ### Prop forwarding
 

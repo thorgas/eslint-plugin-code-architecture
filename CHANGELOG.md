@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0-alpha.6
+
+- Let `require-interactive-component-contract` trust configured design-system roots through `contractComponents`. Feature wrappers inherit role, accessibility-state, and feedback ownership from those roots while still having to expose and forward their own disabled behavior and configurable content.
+
 ## 0.6.0-alpha.5
 
 - Recognize `assertWorkletInvariant` as a built-in assertion helper across the assertion rules. This gives serialized Reanimated worklets an explicit invariant convention without requiring every consumer to repeat an `assertionNames` exception.
