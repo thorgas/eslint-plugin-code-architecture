@@ -65,6 +65,25 @@ test("no-raw-design-properties permits tokens and configured values", () => {
   expect(messages).toHaveLength(0);
 });
 
+test("no-raw-design-properties reports conditional and logical design literals once", () => {
+  const messages = lint(
+    "const styles = { backgroundColor: isDark ? '#000' : '#fff' };",
+  );
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("theme.colors");
+
+  const logicalMessages = lint(
+    "const styles = { backgroundColor: override || '#fff' };",
+  );
+  expect(logicalMessages).toHaveLength(1);
+});
+
+test("no-raw-design-properties permits conditional branches that are all allowed values", () => {
+  expect(
+    lint("const styles = { padding: isCompact ? 0 : 0 };"),
+  ).toHaveLength(0);
+});
+
 test("no-raw-design-properties respects allowed files", () => {
   expect(
     lint(

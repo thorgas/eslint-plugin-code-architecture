@@ -22,7 +22,7 @@ interface TimeDep {
 }
 ```
 
-This syntax-only rule recognizes interface declarations and object type aliases whose names end in `Dep`.
+This syntax-only rule recognizes interface declarations and object type aliases whose names end in `Dep`. The wrapped type reference may carry its own type arguments, e.g. `interface TimeDep { readonly time: Time<Utc> }`.
 
 Reference: Evolu, [Dependency Injection](https://www.evolu.dev/docs/dependency-injection), especially “To avoid clashes, wrap dependencies (`TimeDep`, `LoggerDep`).”
 

@@ -11,6 +11,31 @@ const stringArray = {
   items: { type: "string", minLength: 1 },
 };
 
+const buildReplacementMaps = (replacements) => {
+  const importReplacements = new Map();
+  const elementReplacements = new Map();
+  for (const replacement of replacements) {
+    for (const imported of replacement.imported ?? []) {
+      importReplacements.set(
+        `${replacement.from}\0${imported}`,
+        replacement.replacement,
+      );
+    }
+    for (const element of replacement.elements ?? []) {
+      elementReplacements.set(element, replacement.replacement);
+    }
+  }
+  return { elementReplacements, importReplacements };
+};
+
+const specifierImportedName = (specifier) => {
+  if (specifier.type === "ImportDefaultSpecifier") return "default";
+  if (specifier.type !== "ImportSpecifier") return undefined;
+  return specifier.imported.type === "Identifier"
+    ? specifier.imported.name
+    : String(specifier.imported.value);
+};
+
 const rule = {
   meta: {
     type: "problem",
@@ -63,19 +88,10 @@ const rule = {
       return {};
     }
 
-    const importReplacements = new Map();
-    const elementReplacements = new Map();
-    for (const replacement of options.replacements) {
-      for (const imported of replacement.imported ?? []) {
-        importReplacements.set(
-          `${replacement.from}\0${imported}`,
-          replacement.replacement,
-        );
-      }
-      for (const element of replacement.elements ?? []) {
-        elementReplacements.set(element, replacement.replacement);
-      }
-    }
+    const { elementReplacements, importReplacements } = buildReplacementMaps(
+      options.replacements,
+    );
+    const namespaceImports = new Map();
 
     const report = (node, primitive, replacement) =>
       context.report({
@@ -88,14 +104,11 @@ const rule = {
       ImportDeclaration(node) {
         if (typeof node.source.value !== "string") return;
         for (const specifier of node.specifiers) {
-          let imported;
-          if (specifier.type === "ImportDefaultSpecifier") imported = "default";
-          if (specifier.type === "ImportSpecifier") {
-            imported =
-              specifier.imported.type === "Identifier"
-                ? specifier.imported.name
-                : String(specifier.imported.value);
+          if (specifier.type === "ImportNamespaceSpecifier") {
+            namespaceImports.set(specifier.local.name, node.source.value);
+            continue;
           }
+          const imported = specifierImportedName(specifier);
           if (!imported) continue;
           const replacement = importReplacements.get(
             `${node.source.value}\0${imported}`,
@@ -105,8 +118,22 @@ const rule = {
       },
       JSXOpeningElement(node) {
         const primitive = jsxElementName(node.name);
-        const replacement = elementReplacements.get(primitive);
-        if (replacement) report(node.name, primitive, replacement);
+        const directReplacement = elementReplacements.get(primitive);
+        if (directReplacement) {
+          report(node.name, primitive, directReplacement);
+          return;
+        }
+
+        if (node.name.type !== "JSXMemberExpression") return;
+        const parts = primitive.split(".");
+        if (parts.length !== 2) return;
+        const [namespace, member] = parts;
+        if (!namespaceImports.has(namespace)) return;
+
+        const namespaceReplacement = elementReplacements.get(member);
+        if (namespaceReplacement) {
+          report(node.name, member, namespaceReplacement);
+        }
       },
     };
   },

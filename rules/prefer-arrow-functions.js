@@ -91,6 +91,15 @@ const rule = {
         }
       },
       FunctionExpression(node) {
+        const parentType = node.parent?.type;
+        if (
+          parentType === "MethodDefinition" ||
+          parentType === "TSAbstractMethodDefinition" ||
+          (parentType === "Property" &&
+            (node.parent.method || node.parent.kind === "get" || node.parent.kind === "set"))
+        ) {
+          return;
+        }
         if (isAllowed(node)) return;
         context.report({ messageId: "useArrow", node });
       },

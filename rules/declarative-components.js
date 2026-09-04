@@ -1,3 +1,5 @@
+import { containsJsx } from "./composition-helpers.js";
+
 const functionName = (node) => {
   if (node.id?.type === "Identifier") return node.id.name;
   if (
@@ -9,6 +11,18 @@ const functionName = (node) => {
   return undefined;
 };
 
+// A nested function only counts as inline behavior worth reporting when it is
+// declared as its own statement or bound to a local variable (a function
+// declaration, or `const x = () => ...`). Functions passed directly as JSX
+// attribute values, call arguments (including `.map()` callbacks and
+// `useCallback(() => ...)`), or other expression positions are not
+// independently named or reused, so they are not reported.
+const isBoundFunctionDeclaration = (node) =>
+  node.type === "FunctionDeclaration" ||
+  (node.parent?.type === "VariableDeclarator" &&
+    node.parent.id.type === "Identifier" &&
+    node.parent.init === node);
+
 const calleeLeafName = (node) => {
   if (node.type === "Identifier") return node.name;
   if (
@@ -19,6 +33,68 @@ const calleeLeafName = (node) => {
     return node.property.name;
   }
   return undefined;
+};
+
+const currentComponent = (state) =>
+  state.functionStack.findLast(({ component }) => component)?.component;
+
+// A function is a component only when it actually returns JSX. A
+// capitalized name alone is not enough: it must both match the configured
+// naming convention and contain JSX in its body.
+const isComponent = (state, node, name) =>
+  Boolean(name) &&
+  state.componentNamePattern.test(name) &&
+  containsJsx(node, state.sourceCode);
+
+const enterFunction = (state, node) => {
+  const parentComponent = currentComponent(state);
+  const name = functionName(node);
+  const component = isComponent(state, node, name)
+    ? { actorHookCount: 0, node }
+    : undefined;
+
+  if (
+    parentComponent &&
+    state.forbidInlineFunctions &&
+    isBoundFunctionDeclaration(node)
+  ) {
+    state.context.report({ node, messageId: "inlineFunction" });
+  }
+  state.functionStack.push({ component });
+};
+
+const exitFunction = (state) => {
+  const current = state.functionStack.pop();
+  const component = current?.component;
+  if (!component || component.actorHookCount <= state.maximumActorHooks) {
+    return;
+  }
+
+  state.context.report({
+    node: component.node,
+    messageId: "multipleActors",
+    data: {
+      actual: component.actorHookCount,
+      maximum: state.maximumActorHooks,
+    },
+  });
+};
+
+const visitCallExpression = (state, node) => {
+  const component = currentComponent(state);
+  if (!component) return;
+
+  const hook = calleeLeafName(node.callee);
+  if (!hook) return;
+  if (state.forbiddenHooks.has(hook)) {
+    state.context.report({ node, messageId: "forbiddenHook", data: { hook } });
+  }
+  if (state.actorHooks.has(hook)) component.actorHookCount += 1;
+};
+
+const visitTryStatement = (state, node) => {
+  if (!state.forbidTryStatements || !currentComponent(state)) return;
+  state.context.report({ node, messageId: "errorHandling" });
 };
 
 const makeConfiguration = (options) => ({
@@ -75,66 +151,20 @@ const rule = {
   },
   create(context) {
     const options = context.options[0] ?? {};
-    const {
-      actorHooks,
-      componentNamePattern,
-      forbiddenHooks,
-      maximumActorHooks,
-    } = makeConfiguration(options);
-    const functionStack = [];
-
-    const currentComponent = () =>
-      functionStack.findLast(({ component }) => component)?.component;
-
-    const enterFunction = (node) => {
-      const parentComponent = currentComponent();
-      const name = functionName(node);
-      const component =
-        name && componentNamePattern.test(name)
-          ? { actorHookCount: 0, node }
-          : undefined;
-
-      if (parentComponent && options.forbidInlineFunctions !== false) {
-        context.report({ node, messageId: "inlineFunction" });
-      }
-      functionStack.push({ component });
-    };
-
-    const exitFunction = () => {
-      const current = functionStack.pop();
-      const component = current?.component;
-      if (!component || component.actorHookCount <= maximumActorHooks) return;
-
-      context.report({
-        node: component.node,
-        messageId: "multipleActors",
-        data: { actual: component.actorHookCount, maximum: maximumActorHooks },
-      });
+    const state = {
+      ...makeConfiguration(options),
+      context,
+      forbidInlineFunctions: options.forbidInlineFunctions !== false,
+      forbidTryStatements: options.forbidTryStatements !== false,
+      functionStack: [],
+      sourceCode: context.sourceCode,
     };
 
     return {
-      ":function": enterFunction,
-      ":function:exit": exitFunction,
-      CallExpression(node) {
-        const component = currentComponent();
-        if (!component) return;
-
-        const hook = calleeLeafName(node.callee);
-        if (!hook) return;
-        if (forbiddenHooks.has(hook)) {
-          context.report({
-            node,
-            messageId: "forbiddenHook",
-            data: { hook },
-          });
-        }
-        if (actorHooks.has(hook)) component.actorHookCount += 1;
-      },
-      TryStatement(node) {
-        if (options.forbidTryStatements === false || !currentComponent())
-          return;
-        context.report({ node, messageId: "errorHandling" });
-      },
+      ":function": (node) => enterFunction(state, node),
+      ":function:exit": () => exitFunction(state),
+      CallExpression: (node) => visitCallExpression(state, node),
+      TryStatement: (node) => visitTryStatement(state, node),
     };
   },
 };

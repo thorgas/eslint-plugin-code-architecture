@@ -55,6 +55,8 @@ The rule checks object properties and JSX attributes by syntax and is independen
 
 For JSX, only statically known strings are inspected: direct string attributes, string literals in expression containers, and template literals without substitutions. The rule does not evaluate variables, template expressions with substitutions, component implementations, imports, or runtime values.
 
+Each `values` entry may match a `value` (exact literal equality) or a `pattern` (a regex source string tested against string literals via `new RegExp(pattern).test(value)`) — pick one per entry. Independently of any configured `values`, the rule also applies a built-in default detection for raw colors — hex codes (`^#[0-9a-fA-F]{3,8}$`) and `rgb()`/`rgba()`/`hsl()`/`hsla()` strings — on color-like properties (`color`, `backgroundColor`, `borderColor`, `tintColor`, `shadowColor`, `fill`, `stroke`, or any property name ending in `Color`), even when `values` is omitted entirely or that property has no configured entries. Identifiers bound with `let` and never reassigned are resolved to their initializer for detection purposes, the same as `const` aliases.
+
 `allowedFiles` exempts complete token-definition files. `exceptions` can exempt a configured value only for selected files and, optionally, selected properties or values. Paths are minimatch patterns relative to the lint working directory.
 
 `replacement` is optional. When omitted, the diagnostic directs the consumer to use an approved design token without naming a specific expression.

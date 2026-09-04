@@ -193,3 +193,36 @@ test("no-unasserted-return reuses production eligibility options", () => {
   });
   expect(messages).toHaveLength(0);
 });
+
+test("no-unasserted-return structurally recognizes a namespace-imported assertion and does not flag returning it directly", () => {
+  const messages = lintRule({
+    code: `
+      import * as a from "assert";
+      function checkAndReturn(value) {
+        doSomethingElse();
+        return a.ok(value);
+      }
+    `,
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unasserted-return still flags returning a call from an unrelated import under an assert-like alias", () => {
+  const messages = lintRule({
+    code: `
+      import { isEqual as checkEqual } from "lodash";
+      function compare(left, right) {
+        doSomethingElse();
+        return checkEqual(left, right);
+      }
+    `,
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("unassertedReturn");
+});

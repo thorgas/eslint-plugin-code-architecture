@@ -34,3 +34,11 @@ test("dependency-wrapper-shape rejects mutable, mismatched, and generic wrappers
     "propertyType",
   ]);
 });
+
+test("dependency-wrapper-shape allows type arguments on the wrapped type reference", () => {
+  expect(
+    lint(`
+      interface TimeDep { readonly time: Time<Utc> }
+    `),
+  ).toHaveLength(0);
+});

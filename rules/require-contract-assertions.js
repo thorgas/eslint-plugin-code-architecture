@@ -1,5 +1,6 @@
 import {
   assertionNameSet,
+  findVariable,
   isAssertionCall,
 } from "./assertion-helpers.js";
 import {
@@ -61,16 +62,6 @@ const collectBindings = (parameter, inheritedOptional = false) => {
     );
   }
   return [];
-};
-
-const findVariable = (sourceCode, identifier) => {
-  let scope = sourceCode.getScope(identifier);
-  while (scope) {
-    const variable = scope.set.get(identifier.name);
-    if (variable) return variable;
-    scope = scope.upper;
-  }
-  return null;
 };
 
 const isAncestor = (ancestor, node) => {
@@ -586,7 +577,7 @@ const rule = {
       },
       CallExpression(node) {
         const state = functionStack.at(-1);
-        if (state && isAssertionCall(node, assertionNames)) {
+        if (state && isAssertionCall(node, assertionNames, sourceCode)) {
           state.assertions.push(node);
         }
       },

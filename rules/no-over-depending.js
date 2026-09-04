@@ -1,20 +1,56 @@
 import { dependencyParameter } from "./dependency-helpers.js";
 
-const nearestTrackedFunction = (functionStack) => {
-  for (let index = functionStack.length - 1; index >= 0; index -= 1) {
-    const tracked = functionStack[index];
-    if (tracked) return tracked;
+const markDestructuredPropertiesUsed = (pattern, used) => {
+  let restFound = false;
+  for (const property of pattern.properties) {
+    if (property.type === "RestElement") {
+      restFound = true;
+      continue;
+    }
+    if (!property.computed && property.key.type === "Identifier") {
+      used.add(property.key.name);
+    } else {
+      restFound = true;
+    }
   }
-  return null;
+  return restFound;
 };
 
-const markAllUsed = (functionStack, node) => {
-  const tracked = nearestTrackedFunction(functionStack);
-  if (!tracked) return;
-  if (node?.type !== "Identifier" || node.name !== "deps") return;
-  for (const reference of tracked.references) {
-    tracked.used.add(reference.property);
+const collectUsedProperties = (variable) => {
+  const used = new Set();
+  let allUsed = false;
+
+  for (const ref of variable.references) {
+    const identifier = ref.identifier;
+    const parent = identifier.parent;
+
+    if (
+      parent?.type === "MemberExpression" &&
+      parent.object === identifier &&
+      !parent.computed &&
+      parent.property.type === "Identifier"
+    ) {
+      used.add(parent.property.name);
+      continue;
+    }
+
+    if (
+      parent?.type === "VariableDeclarator" &&
+      parent.init === identifier &&
+      parent.id.type === "ObjectPattern"
+    ) {
+      if (markDestructuredPropertiesUsed(parent.id, used)) allUsed = true;
+      continue;
+    }
+
+    // Any other read of `deps` itself (call argument, return value, spread,
+    // alias assignment, template literal, forwarding to another function,
+    // etc.) means the whole deps object escapes, so treat every declared
+    // dependency as used.
+    allUsed = true;
   }
+
+  return { allUsed, used };
 };
 
 const rule = {
@@ -32,29 +68,38 @@ const rule = {
     schema: [],
   },
   create(context) {
-    const functionStack = [];
+    const sourceCode = context.sourceCode;
 
     return {
       ":function"(node) {
         const dependency = dependencyParameter(node);
-        const tracked =
-          dependency?.parameter.type === "Identifier" &&
-          dependency.parameter.name === "deps"
-            ? {
-                references: dependency.references.filter(
-                  ({ optional }) => !optional,
-                ),
-                used: new Set(),
-              }
-            : null;
-        functionStack.push(tracked);
-      },
-      ":function:exit"() {
-        const tracked = functionStack.pop();
-        if (!tracked) return;
+        if (
+          !dependency ||
+          dependency.parameter.type !== "Identifier" ||
+          dependency.parameter.name !== "deps"
+        ) {
+          return;
+        }
 
-        for (const reference of tracked.references) {
-          if (tracked.used.has(reference.property)) continue;
+        const references = dependency.references.filter(
+          ({ optional }) => !optional,
+        );
+        if (references.length === 0) return;
+
+        // Find the scope variable for the `deps` parameter declared by this
+        // function, so nested functions with their own `deps` parameter
+        // don't cross-contaminate.
+        const declaredVariables = sourceCode.getDeclaredVariables(node);
+        const variable = declaredVariables.find((v) => v.name === "deps");
+        if (!variable) return;
+
+        const { allUsed, used } = collectUsedProperties(variable);
+        if (allUsed) {
+          for (const reference of references) used.add(reference.property);
+        }
+
+        for (const reference of references) {
+          if (used.has(reference.property)) continue;
           context.report({
             data: {
               dependency: reference.name,
@@ -64,34 +109,6 @@ const rule = {
             node: reference.node,
           });
         }
-      },
-      MemberExpression(node) {
-        if (
-          node.object.type !== "Identifier" ||
-          node.object.name !== "deps" ||
-          node.computed ||
-          node.property.type !== "Identifier"
-        ) {
-          return;
-        }
-
-        nearestTrackedFunction(functionStack)?.used.add(node.property.name);
-      },
-      CallExpression(node) {
-        for (const argument of node.arguments) {
-          markAllUsed(functionStack, argument);
-        }
-      },
-      NewExpression(node) {
-        for (const argument of node.arguments) {
-          markAllUsed(functionStack, argument);
-        }
-      },
-      ReturnStatement(node) {
-        markAllUsed(functionStack, node.argument);
-      },
-      SpreadElement(node) {
-        markAllUsed(functionStack, node.argument);
       },
     };
   },

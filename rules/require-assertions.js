@@ -276,6 +276,7 @@ const rule = {
     const minimum = options.minimum ?? 2;
     const minimumStatements = options.minimumStatements ?? 1;
     const assertionNames = assertionNameSet(options.assertionNames);
+    const sourceCode = context.sourceCode;
     const functionStack = [];
 
     const enterFunction = (node) => {
@@ -320,7 +321,7 @@ const rule = {
         const current = functionStack.at(-1);
         if (!current) return;
 
-        if (isAssertionCall(node, assertionNames)) current.count += 1;
+        if (isAssertionCall(node, assertionNames, sourceCode)) current.count += 1;
       },
       ThrowStatement(node) {
         if (!options.countGuardedThrows) return;

@@ -96,6 +96,7 @@ export default {
       checkExpressionBodies: true,
       ignoreDelegates: options.ignoreDelegates !== false,
     };
+    const sourceCode = context.sourceCode;
     const functionStack = [];
 
     const exitFunction = () => {
@@ -120,7 +121,7 @@ export default {
           node.body.type === "BlockStatement"
             ? []
             : returnedCalls(node.body).filter(
-                (call) => !isAssertionCall(call, assertionNames),
+                (call) => !isAssertionCall(call, assertionNames, sourceCode),
               );
         functionStack.push({
           node,
@@ -132,7 +133,7 @@ export default {
         const current = functionStack.at(-1);
         if (!current) return;
         const calls = returnedCalls(node.argument).filter(
-          (call) => !isAssertionCall(call, assertionNames),
+          (call) => !isAssertionCall(call, assertionNames, sourceCode),
         );
         if (calls.length > 0) current.returns.push({ calls, node });
       },

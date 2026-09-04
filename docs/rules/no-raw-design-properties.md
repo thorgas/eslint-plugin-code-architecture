@@ -21,6 +21,8 @@ Rejects any direct static string or number literal assigned to configured design
 
 Object properties and JSX attributes are inspected. Token references and other runtime expressions are left alone. The rule does not evaluate variables, function calls, arithmetic, or template expressions with substitutions.
 
+A ternary or `||`/`??` expression assigned to a configured property is also checked: `backgroundColor: isDark ? '#000' : '#fff'` is reported once (on the whole expression) when the relevant branches — both branches of a conditional, or the right-hand side of a logical expression — are static literals not covered by `allowedValues`.
+
 This rule is excluded from every preset. Configure only properties whose token migration is complete.
 
 ## Production-derived example

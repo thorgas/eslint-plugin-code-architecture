@@ -59,7 +59,9 @@ Direct computed returns are reported because there is no stable returned binding
 
 ## Options
 
-- `assertionNames`: replaces the recognized assertion helper names.
+Assertion calls are recognized structurally, as with `require-assertions`: a call to an import from an assertion module (`assert`, `node:assert`, `invariant`, and similar, including namespace/default imports, member access, and one level of local aliasing), or a call to a same-file function whose return type is a TypeScript `asserts` predicate, always counts as a satisfying assertion.
+
+- `assertionNames`: a textual fallback that additionally matches the exact printed callee name, for project-specific helpers that use neither structural pattern above.
 - `checkParameters`: enables parameter contracts; defaults to `true`.
 - `checkReturns`: enables return contracts; defaults to `true`.
 - `ignoreTypeOnlyAssertions`: rejects recognizable TypeScript-redundant assertions; defaults to `true`.

@@ -26,6 +26,62 @@ export const jsxAttributeExpression = (node) =>
     ? node.value.expression
     : undefined;
 
+export const findVariable = (sourceCode, node) => {
+  let scope = sourceCode.getScope(node);
+  while (scope) {
+    const variable = scope.variables.find(({ name }) => name === node.name);
+    if (variable) return variable;
+    scope = scope.upper;
+  }
+  return undefined;
+};
+
+// Resolves an Identifier back to its initializer expression when the
+// binding is a `const`, or a `let` that is never reassigned after its
+// declaration.
+export const getVariableInitializer = (sourceCode, node) => {
+  const variable = findVariable(sourceCode, node);
+  if (variable?.defs.length !== 1) return undefined;
+
+  const [definition] = variable.defs;
+  if (
+    definition.type !== "Variable" ||
+    definition.name.type !== "Identifier"
+  ) {
+    return undefined;
+  }
+
+  const { kind } = definition.parent;
+  if (kind === "const") return definition.node.init ?? undefined;
+  if (kind !== "let") return undefined;
+
+  const isReassigned = variable.references.some(
+    (reference) => reference.isWrite() && reference.identifier !== definition.name,
+  );
+  return isReassigned ? undefined : (definition.node.init ?? undefined);
+};
+
+// Resolves an Identifier bound to a `const` object-literal initializer
+// back to that ObjectExpression, for use where a JSX attribute references
+// a locally-declared style object instead of an inline literal.
+export const constObjectLiteral = (sourceCode, node) => {
+  if (node.type !== "Identifier") return undefined;
+  const variable = findVariable(sourceCode, node);
+  if (variable?.defs.length !== 1) return undefined;
+
+  const [definition] = variable.defs;
+  if (
+    definition.type !== "Variable" ||
+    definition.parent.kind !== "const" ||
+    definition.name.type !== "Identifier"
+  ) {
+    return undefined;
+  }
+  return definition.node.init?.type === "ObjectExpression"
+    ? definition.node.init
+    : undefined;
+};
+
 export const staticLiteral = (node) => {
   node = unwrapExpression(node);
   if (!node) return undefined;

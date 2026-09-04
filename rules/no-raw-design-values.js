@@ -1,5 +1,6 @@
 import path from "node:path";
 import { minimatch } from "minimatch";
+import { getVariableInitializer } from "./design-system-helpers.js";
 
 const normalizePath = (value) => value.split(path.sep).join("/");
 const defaultReplacement = "an approved design token";
@@ -58,41 +59,51 @@ const getStaticJsxString = (node) => {
   return undefined;
 };
 
-const findVariable = (sourceCode, node) => {
-  let scope = sourceCode.getScope(node);
-  while (scope) {
-    const variable = scope.variables.find(({ name }) => name === node.name);
-    if (variable) return variable;
-    scope = scope.upper;
+const colorLikeProperties = new Set([
+  "color",
+  "backgroundColor",
+  "borderColor",
+  "tintColor",
+  "shadowColor",
+  "fill",
+  "stroke",
+]);
+
+const isColorLikeProperty = (property) =>
+  colorLikeProperties.has(property) || property.endsWith("Color");
+
+const defaultColorPattern = /^#[0-9a-fA-F]{3,8}$/;
+const defaultColorFunctionPattern = /^(rgba?|hsla?)\(/i;
+
+const isDefaultColorValue = (value) =>
+  typeof value === "string" &&
+  (defaultColorPattern.test(value) || defaultColorFunctionPattern.test(value));
+
+// Resolves a property's configured matchers plus the built-in color
+// detection into a single "does this value count as raw?" lookup that
+// returns the replacement text, or undefined when nothing matches.
+const buildMatcher = (matchers, property) => (value) => {
+  for (const matcher of matchers) {
+    if (matcher.test(value)) return matcher.replacement ?? defaultReplacement;
+  }
+  if (isColorLikeProperty(property) && isDefaultColorValue(value)) {
+    return defaultReplacement;
   }
   return undefined;
 };
 
-const getConstInitializer = (sourceCode, node) => {
-  const variable = findVariable(sourceCode, node);
-  if (variable?.defs.length !== 1) return undefined;
-
-  const [definition] = variable.defs;
-  if (
-    definition.type !== "Variable" ||
-    definition.parent.kind !== "const" ||
-    definition.name.type !== "Identifier"
-  ) {
-    return undefined;
-  }
-  return definition.node.init ?? undefined;
-};
-
-const collectRawValues = (sourceCode, node, values, seen = new Set()) => {
+const collectRawValues = (sourceCode, node, matchValue, seen = new Set()) => {
   if (!node || seen.has(node)) return [];
   seen.add(node);
 
   if (node.type === "Literal") {
-    return values.has(node.value) ? [{ node, value: node.value }] : [];
+    const replacement = matchValue(node.value);
+    return replacement ? [{ node, replacement, value: node.value }] : [];
   }
   if (node.type === "TemplateLiteral" && node.expressions.length === 0) {
     const value = node.quasis[0]?.value.cooked;
-    return values.has(value) ? [{ node, value }] : [];
+    const replacement = matchValue(value);
+    return replacement ? [{ node, replacement, value }] : [];
   }
   if (
     node.type === "UnaryExpression" &&
@@ -101,12 +112,13 @@ const collectRawValues = (sourceCode, node, values, seen = new Set()) => {
     typeof node.argument.value === "number"
   ) {
     const value = node.operator === "-" ? -node.argument.value : node.argument.value;
-    return values.has(value) ? [{ node, value }] : [];
+    const replacement = matchValue(value);
+    return replacement ? [{ node, replacement, value }] : [];
   }
   if (node.type === "Identifier") {
-    const initializer = getConstInitializer(sourceCode, node);
-    return collectRawValues(sourceCode, initializer, values, seen).map(
-      ({ value }) => ({ node, value }),
+    const initializer = getVariableInitializer(sourceCode, node);
+    return collectRawValues(sourceCode, initializer, matchValue, seen).map(
+      ({ replacement, value }) => ({ node, replacement, value }),
     );
   }
 
@@ -115,7 +127,7 @@ const collectRawValues = (sourceCode, node, values, seen = new Set()) => {
   return keys.flatMap((key) => {
     const children = Array.isArray(node[key]) ? node[key] : [node[key]];
     return children.flatMap((child) =>
-      collectRawValues(sourceCode, child, values, seen),
+      collectRawValues(sourceCode, child, matchValue, seen),
     );
   });
 };
@@ -128,7 +140,6 @@ const isExcepted = (exceptions, property, value) =>
   );
 
 const reportRawValue = ({
-  configuredValues,
   context,
   exceptions,
   match,
@@ -147,11 +158,36 @@ const reportRawValue = ({
     messageId: "rawDesignValue",
     data: {
       property,
-      replacement:
-        configuredValues.get(match.value) ?? defaultReplacement,
+      replacement: match.replacement,
       value: String(match.value),
     },
   });
+};
+
+const buildValueMatcher = (configuredValue) =>
+  configuredValue.pattern
+    ? {
+        replacement: configuredValue.replacement,
+        test: (value) =>
+          typeof value === "string" &&
+          new RegExp(configuredValue.pattern).test(value),
+      }
+    : {
+        replacement: configuredValue.replacement,
+        test: (value) => value === configuredValue.value,
+      };
+
+const buildMatchersByProperty = (values = []) => {
+  const matchersByProperty = new Map();
+  for (const configuredValue of values) {
+    const matcher = buildValueMatcher(configuredValue);
+    for (const property of configuredValue.properties) {
+      const matchers = matchersByProperty.get(property) ?? [];
+      matchers.push(matcher);
+      matchersByProperty.set(property, matchers);
+    }
+  }
+  return matchersByProperty;
 };
 
 const rule = {
@@ -169,7 +205,6 @@ const rule = {
       {
         type: "object",
         additionalProperties: false,
-        required: ["values"],
         properties: {
           allowedFiles: {
             type: "array",
@@ -211,8 +246,10 @@ const rule = {
             items: {
               type: "object",
               additionalProperties: false,
-              required: ["properties", "value"],
+              required: ["properties"],
+              anyOf: [{ required: ["value"] }, { required: ["pattern"] }],
               properties: {
+                pattern: { type: "string", minLength: 1 },
                 properties: {
                   type: "array",
                   minItems: 1,
@@ -238,30 +275,26 @@ const rule = {
     const exceptions = (options.exceptions ?? []).filter(({ files }) =>
       matchesFile(filename, files),
     );
-    const valuesByProperty = new Map();
-    for (const configuredValue of options.values) {
-      for (const property of configuredValue.properties) {
-        const values = valuesByProperty.get(property) ?? new Map();
-        values.set(configuredValue.value, configuredValue.replacement);
-        valuesByProperty.set(property, values);
-      }
-    }
+    const matchersByProperty = buildMatchersByProperty(options.values);
     const sourceCode = context.sourceCode;
     const reportedNodes = new WeakSet();
 
     return {
       JSXAttribute(node) {
         const property = getJsxPropertyName(node);
-        const configuredValues = valuesByProperty.get(property);
-        if (!configuredValues) return;
-
+        if (!property) return;
         const match = getStaticJsxString(node);
-        if (!match || !configuredValues.has(match.value)) return;
+        if (!match) return;
+        const matchValue = buildMatcher(
+          matchersByProperty.get(property) ?? [],
+          property,
+        );
+        const replacement = matchValue(match.value);
+        if (!replacement) return;
         reportRawValue({
-          configuredValues,
           context,
           exceptions,
-          match,
+          match: { ...match, replacement },
           property,
           reportedNodes,
         });
@@ -269,16 +302,18 @@ const rule = {
       Property(node) {
         if (node.parent.type === "ObjectPattern") return;
         const property = getPropertyName(node);
-        const configuredValues = valuesByProperty.get(property);
-        if (!configuredValues) return;
+        if (!property) return;
+        const matchValue = buildMatcher(
+          matchersByProperty.get(property) ?? [],
+          property,
+        );
 
         for (const match of collectRawValues(
           sourceCode,
           node.value,
-          configuredValues,
+          matchValue,
         )) {
           reportRawValue({
-            configuredValues,
             context,
             exceptions,
             match,

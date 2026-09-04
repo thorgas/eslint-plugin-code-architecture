@@ -66,3 +66,21 @@ test("prefer-arrow-functions rejects ordinary function declarations and expressi
   expect(messages).toHaveLength(3);
   expect(messages.every(({ messageId }) => messageId === "useArrow")).toBe(true);
 });
+
+test("prefer-arrow-functions ignores class methods, object methods, and accessors", () => {
+  expect(
+    lint(`
+      class Repo {
+        constructor() {}
+        getAll() { return []; }
+        get size() { return 0; }
+        set size(value) {}
+      }
+      const obj = {
+        method() {},
+        get value() { return 1; },
+        set value(v) {},
+      };
+    `),
+  ).toHaveLength(0);
+});

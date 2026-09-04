@@ -80,8 +80,7 @@ const rule = {
       if (
         memberType?.type !== "TSTypeReference" ||
         memberType.typeName.type !== "Identifier" ||
-        memberType.typeName.name !== typeName ||
-        memberType.typeArguments?.params.length > 0
+        memberType.typeName.name !== typeName
       ) {
         context.report({
           data: { name, typeName },

@@ -2,12 +2,14 @@
 
 Requires arrow functions instead of the `function` keyword. TypeScript overload sets are preserved because TypeScript requires function declarations for overload signatures.
 
+Class methods, object-literal methods, and getters/setters are never reported: they cannot be rewritten as arrow functions, so the rule only inspects standalone function declarations and expressions.
+
 The rule remains exhaustive by default. Production consumers can preserve declarations that carry real semantics or framework requirements:
 
 - `allowDefaultExports` for route/framework default exports.
 - `allowNamedExports` for exported framework entry points.
 - `allowGenerators`, `allowRecursive`, and `allowHoisted` when declaration syntax is behaviorally meaningful.
-- `allowedNames` and `allowedFiles` for narrow minimatch-based exceptions.
+- `allowedNames` and `allowedFiles` are a last-resort migration baseline, not a recommended option: use them only to grandfather in existing call sites while a codebase migrates toward arrow functions, and prefer removing entries as the underlying declarations are converted rather than adding new ones.
 
 Invalid:
 

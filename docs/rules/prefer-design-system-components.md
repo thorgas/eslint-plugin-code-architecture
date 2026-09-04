@@ -27,6 +27,8 @@ Requires configured consumer paths to use design-system components instead of se
 
 The rule reports matching static imports, including aliases, and configured intrinsic JSX elements. It does not resolve re-exports, `require`, dynamic imports, or component implementations.
 
+A JSX element accessed through a namespace import (`import * as RN from 'react-native'; <RN.TouchableOpacity />`) is also matched: the namespace object is resolved back to its import, and the trailing member name is looked up in `elements` the same way a bare `<TouchableOpacity />` would be.
+
 This rule is excluded from every preset. Enable each replacement only after its design-system primitive exists and the configured consumers have migrated.
 
 ## Production-derived example

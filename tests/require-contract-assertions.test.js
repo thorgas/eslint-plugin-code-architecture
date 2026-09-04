@@ -333,3 +333,35 @@ test("require-contract-assertions rejects vacuous checks and aliased type checks
     "unassertedReturn",
   ]);
 });
+
+test("require-contract-assertions structurally recognizes an aliased namespace import as an assertion", () => {
+  const messages = lint(`
+    import * as nodeAssert from "node:assert";
+    const a = nodeAssert;
+    function normalize(value: string): string {
+      a.ok(value.length > 0);
+      const result = value.trim();
+      a.ok(result.length > 0);
+      return result;
+    }
+  `);
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-contract-assertions structurally recognizes a locally declared asserts-predicate helper", () => {
+  const messages = lint(`
+    function assertNonEmpty(value: string): asserts value is string {
+      if (value.length === 0) throw new Error("empty");
+    }
+    function normalize(value: string): string {
+      assertNonEmpty(value);
+      const result = value.trim();
+      assertNonEmpty(result);
+      return result;
+    }
+  `);
+
+  const normalizeMessages = messages.filter((message) => message.line >= 5);
+  expect(normalizeMessages).toHaveLength(0);
+});

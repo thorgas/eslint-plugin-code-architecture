@@ -663,3 +663,125 @@ test("require-assertions does not credit a callback to a function that computes 
 
   expect(messages).toHaveLength(1);
 });
+
+test("require-assertions structurally recognizes calls to a namespace-imported assert module", () => {
+  const messages = lintRule({
+    code: `import * as a from "assert";
+function transfer(source, target) {
+  a.strictEqual(typeof source, "number");
+  a.ok(target);
+  return source - target;
+}`,
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions structurally recognizes a default-imported node:assert with any member name", () => {
+  const messages = lintRule({
+    code: `import nodeAssert from "node:assert";
+function transfer(source, target) {
+  nodeAssert.ok(source);
+  nodeAssert.notStrictEqual(source, target);
+  return source - target;
+}`,
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions structurally recognizes a renamed named import", () => {
+  const messages = lintRule({
+    code: `import { strict as invariant } from "node:assert";
+function transfer(source, target) {
+  invariant(source > 0);
+  invariant(target > 0);
+  return source - target;
+}`,
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions follows one level of local aliasing of an assertion import", () => {
+  const messages = lintRule({
+    code: `import * as nodeAssert from "assert";
+const a = nodeAssert;
+function transfer(source, target) {
+  a.strictEqual(typeof source, "number");
+  a.ok(target);
+  return source - target;
+}`,
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-assertions structurally recognizes calls to a locally declared asserts-predicate function", () => {
+  const messages = lintRule({
+    code: `function assertPositive(value: number): asserts value is number {
+  if (value <= 0) throw new Error("not positive");
+}
+function transfer(source, target) {
+  assertPositive(source);
+  assertPositive(target);
+  return source - target;
+}`,
+    options: [{ minimum: 1 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  // Only "transfer" is asserted on here; "assertPositive" itself is exempt
+  // from the density check via its own minimum below - this test verifies
+  // that calling it counts as an assertion in the caller, not that the
+  // helper's own body is exempt from the rule.
+  const transferMessages = messages.filter(
+    (message) => message.line >= 4,
+  );
+  expect(transferMessages).toHaveLength(0);
+});
+
+test("require-assertions does not structurally recognize an import from an unrelated module, even under an assert-like local name", () => {
+  const messages = lintRule({
+    code: `import { isEqual as checkEqual } from "lodash";
+function transfer(source, target) {
+  checkEqual(source, target);
+  checkEqual(target, source);
+  return source - target;
+}`,
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  // "checkEqual" is not in assertionNames and "lodash" is not an assertion
+  // module, so neither the textual nor the structural check fires: name-list
+  // matching stays purely textual, and the structural check only trusts the
+  // import's own module source, not the local alias name.
+  expect(messages).toHaveLength(1);
+});
+
+test("require-assertions recognizes relative assertion modules with file extensions", () => {
+  expect(
+    lintRule({
+      code: `
+        import { check } from "../shared/assert.ts";
+        const parse = (input: string) => {
+          check(input.length > 0);
+          check(input !== "x");
+          return input;
+        };
+      `,
+      rule,
+      ruleName: "require-assertions",
+    }),
+  ).toHaveLength(0);
+});

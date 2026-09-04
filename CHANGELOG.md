@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.0-alpha.4
+
+- Detect assertions structurally in `require-assertions`, `require-contract-assertions`, and `no-unasserted-return`: any call that resolves to an import from an assertion module (`assert`, `node:assert`, `tiny-invariant`, or any path ending in `assert`/`asserts`/`assertions`/`invariant`), a one-level local alias of it, or a same-file function with a TypeScript `asserts` predicate counts without configuration. `assertionNames` remains a textual fallback.
+- Make `require-interactive-component-contract` work with no options: ship React Native and DOM defaults for role, state, disabled, feedback, and content attributes, detect interactive primitives structurally (a component whose rendered root, or single-wrapped child, carries `onPress`/`onClick`/`onPressIn`), accept `{...rest}` spread forwarding as a complete role/state/disabled contract, and follow one level of prop aliasing. `componentNames` is now an optional allow-list.
+- Fix `no-over-depending` to resolve the `deps` parameter through scope analysis: destructuring, rest patterns, aliasing, and forwarding count as use, and nested functions with their own `deps` no longer cross-contaminate.
+- Stop `prefer-arrow-functions` from reporting class methods, object methods, getters, setters, and constructors; document `allowedNames`/`allowedFiles` as migration baselines.
+- Allow type arguments on the wrapped type in `dependency-wrapper-shape`.
+- Narrow `declarative-components`: only JSX-returning functions are components, and `forbidInlineFunctions` reports only bound nested declarations, not JSX callbacks, array callbacks, or hook arguments.
+- Require JSX-returning members in `require-compound-component-api`, recognize `Object.assign(Root, {...})` compounds in the compound rules, and make `no-root-owned-compound-parts` use the compound object's members as ground truth instead of name prefixes.
+- Report re-exports of imported bindings in `no-barrel-files` and add `allowTypeExports`; detect directory index imports (`./feature`, `.`) in `no-barrel-imports` via the filesystem.
+- Match `validationCalls` in `no-unvalidated-json-parse` as globs with `*.parse`, `*.safeParse`, `*.decode`, and similar defaults so schema-instance validators work; tolerate guard-only references before validation.
+- Resolve Effect imports through scope in `effect-error-handling` (`import { Effect }`, namespace and named imports, aliases) and report silent `catchTag`/`catchTags` fallbacks including `Effect.succeed(null)`.
+- Add pattern-based raw value detection to `no-raw-design-values` with default hex/rgb/hsl detection on color-like properties; detect conditional raw literals in `no-raw-design-properties`; resolve namespace JSX imports in `prefer-design-system-components`; resolve const style objects in `no-design-identity-overrides`.
+
 ## 0.6.0-alpha.3
 
 - Redesign `no-implicit-external-dependencies` around built-in capability groups (`time`, `randomness`, `logging`, `environment`, `network`, `storage`, `locale`), all enabled by default. Custom `capabilities` now extend the built-ins instead of silently replacing them; narrow with `groups`. Selectors gain bare-global (`fetch`) and constructor (`new Date()`, `new WebSocket`) forms, global detection uses scope analysis so declared `globals` and type-only references behave correctly, and `create<Dependency>`/`createTest<Dependency>` factories are allowed automatically. **Breaking:** consumers that passed `capabilities` to replace the defaults must add `groups: []`.
