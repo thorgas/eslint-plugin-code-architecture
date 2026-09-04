@@ -5,7 +5,7 @@ test("plugin exposes every rule through portable flat-config presets", () => {
   expect(plugin.meta).toEqual({
     name: "eslint-plugin-code-architecture",
     namespace: "code-architecture",
-    version: "0.6.0-alpha.2",
+    version: "0.6.0-alpha.3",
   });
   expect(Object.keys(plugin.rules).sort()).toEqual([
     "centralize-domain-literals",
@@ -64,6 +64,8 @@ test("plugin exposes every rule through portable flat-config presets", () => {
     "react",
     "composition",
     "lego",
+    "dependencyInjection",
+    "conventions",
     "evoluDependencyInjection",
     "evoluConventions",
   ]);
@@ -179,6 +181,21 @@ test("Evolu presets expose only rules derived from the linked Evolu guides", () 
     "code-architecture/prefer-readonly-types": "error",
     "code-architecture/top-down-declarations": "error",
   });
+});
+
+test("generic dependency-injection and conventions presets alias the Evolu-derived presets", () => {
+  expect(plugin.configs.dependencyInjection[0].rules).toEqual(
+    plugin.configs.evoluDependencyInjection[0].rules,
+  );
+  expect(plugin.configs.conventions[0].rules).toEqual(
+    plugin.configs.evoluConventions[0].rules,
+  );
+  expect(plugin.configs.dependencyInjection[0].name).toBe(
+    "code-architecture/dependency-injection",
+  );
+  expect(plugin.configs.conventions[0].name).toBe(
+    "code-architecture/conventions",
+  );
 });
 
 test("strict does not opt projects into Evolu-specific conventions", () => {

@@ -142,3 +142,120 @@ test("no-implicit-external-dependencies allows configured factories and composit
     ),
   ).toHaveLength(0);
 });
+
+test("no-implicit-external-dependencies keeps built-in groups when custom capabilities are added", () => {
+  const messages = lint(
+    `
+      const stamp = () => Date.now();
+      const say = () => console.log("hi");
+      const read = () => Platform.now();
+    `,
+    {
+      capabilities: [
+        {
+          dependency: "PlatformTimeDep",
+          replacement: "deps.platformTime.now()",
+          selector: "Platform.now",
+        },
+      ],
+    },
+  );
+
+  expect(messages.map(({ message }) => message.split(" ")[0])).toEqual([
+    "Date.now",
+    "console.*",
+    "Platform.now",
+  ]);
+});
+
+test("no-implicit-external-dependencies narrows enforcement to the configured groups", () => {
+  const code = `
+    const stamp = () => Date.now();
+    const say = () => console.log("hi");
+    const roll = () => Math.random();
+  `;
+
+  expect(
+    lint(code, { groups: ["time"] }).map(({ message }) => message.split(" ")[0]),
+  ).toEqual(["Date.now"]);
+  expect(lint(code, { groups: [] })).toHaveLength(0);
+});
+
+test("no-implicit-external-dependencies detects every built-in capability group", () => {
+  const messages = lint(`
+    const a = () => new Date();
+    const b = () => performance.now();
+    const c = () => Math.random();
+    const d = () => crypto.randomUUID();
+    const e = () => process.env.API_URL;
+    const f = () => fetch("/api");
+    const g = () => new WebSocket("wss://x");
+    const h = () => localStorage.getItem("k");
+    const i = () => document.cookie;
+    const j = () => new Intl.DateTimeFormat().format(0);
+    const k = () => navigator.language;
+  `);
+
+  expect(
+    messages.map(({ message }) => /Inject (\w+)/u.exec(message)?.[1]),
+  ).toEqual([
+    "TimeDep",
+    "TimeDep",
+    "RandomDep",
+    "RandomDep",
+    "ConfigDep",
+    "FetchDep",
+    "FetchDep",
+    "StorageDep",
+    "StorageDep",
+    "LocaleDep",
+    "LocaleDep",
+  ]);
+});
+
+test("no-implicit-external-dependencies ignores pure constructor calls, type references, and local shadows", () => {
+  expect(
+    lint(`
+      const parse = (value: string) => new Date(value);
+      const at = (ms: number) => new Date(ms);
+      type Clock = { readonly now: typeof Date.now };
+      const typed = (client: WebSocket, formatter: Intl.DateTimeFormat) => [client, formatter];
+      const fetch = (url: string) => url;
+      const call = () => fetch("/local");
+      const withEnv = (process: { env: Record<string, string> }) => process.env.X;
+    `),
+  ).toHaveLength(0);
+});
+
+test("no-implicit-external-dependencies recognizes declared globals from languageOptions", () => {
+  const messages = lintRule({
+    code: "const roll = () => Math.random(); const send = () => fetch('/x');",
+    languageOptions: {
+      globals: { Math: "readonly", fetch: "readonly" },
+    },
+    rule,
+    ruleName: "no-implicit-external-dependencies",
+  });
+
+  expect(messages.map(({ messageId }) => messageId)).toEqual([
+    "implicitGlobal",
+    "implicitGlobal",
+  ]);
+});
+
+test("no-implicit-external-dependencies derives allowed factories from each dependency name", () => {
+  expect(
+    lint(`
+      const createRandom = (): Random => ({ next: () => Math.random() });
+      const createTestFetch = () => ({ fetch: (url: string) => fetch(url) });
+      const createStorage = () => ({
+        read: (key: string) => localStorage.getItem(key),
+      });
+      class Config {
+        static createConfig() {
+          return process.env;
+        }
+      }
+    `),
+  ).toHaveLength(0);
+});

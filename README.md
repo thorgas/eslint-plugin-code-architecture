@@ -38,10 +38,10 @@ import tseslint from "typescript-eslint";
 const integrations = [
   // Add only when Effect is installed and used:
   // ...architecture.configs.effect,
-  // Add when adopting Evolu's dependency-injection convention:
-  // ...architecture.configs.evoluDependencyInjection,
-  // Add when adopting Evolu's broader TypeScript conventions:
-  // ...architecture.configs.evoluConventions,
+  // Add when dependencies enter through explicit `deps` contracts:
+  // ...architecture.configs.dependencyInjection,
+  // Add when adopting the broader TypeScript module conventions:
+  // ...architecture.configs.conventions,
   // Add for compound components whose consumers should own layout:
   // ...architecture.configs.composition,
   // Add only to files that implement or consume strict LEGO object APIs:
@@ -63,7 +63,7 @@ export default tseslint.config(
 Presets are flat-config arrays and fall into two groups:
 
 - Library-agnostic: `recommended`, `tigerstyle`, `strict`, and `agentReadiness`. The `strict` preset combines `recommended` and `tigerstyle`; `agentReadiness` strengthens `strict` with per-function runtime contracts.
-- Optional library and architecture integrations: `effect`, `react`, `composition`, `lego`, `evoluDependencyInjection`, and `evoluConventions`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used.
+- Optional library and architecture integrations: `effect`, `react`, `composition`, `lego`, `dependencyInjection`, and `conventions`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used. `evoluDependencyInjection` and `evoluConventions` are attribution aliases of the last two.
 
 ## Production patterns
 
@@ -355,7 +355,7 @@ The rule is deliberately excluded from every preset. It does not assume React, R
 
 Design-system adoption rules are also opt-in. Activate a rule only after the matching primitive, token family, interaction contract, dismissal pattern, or component variants exist and their intended consumers have migrated. Enabling them earlier would turn architectural feedback into suppressions rather than adoption.
 
-The Evolu-derived presets are also opt-in and syntax-only. `evoluConventions` deliberately conflicts with namespace-object APIs, including files governed by `lego`; scope those presets to different files.
+The `dependencyInjection` and `conventions` presets are also opt-in and syntax-only. They encode general architecture policies derived from Evolu's guides, not library-specific checks: explicit dependency contracts, composition-root instances, no ambient external access, and unique searchable exports. Treat them as conventions a codebase adopts deliberately, scoped through `files` in `eslint.config`, rather than as universal correctness rules. `no-namespace-exports` allows PascalCase compound-component objects by default so `conventions` and `lego` can share files.
 
 ## Rule reference and examples
 
@@ -365,34 +365,34 @@ Every rule has a compact passing example here, ordered from TypeScript to librar
 
 These rules have no UI or framework dependency. Use them in backend services, libraries, CLIs, workers, or frontend TypeScript.
 
-The Evolu-derived presets are opt-in. `no-implicit-external-dependencies` maps `Date.now` to `TimeDep` and `console.*` to `LoggerDep`; configure project-specific service locators explicitly rather than relying on naming guesses.
+The `dependencyInjection` and `conventions` presets are opt-in. `no-implicit-external-dependencies` ships built-in capability groups for time, randomness, logging, environment, network, storage, and locale; custom `capabilities` extend them, and project-specific service locators are declared explicitly rather than guessed from names.
 
 | Rule | Immediate benefit | Passing shape | Preset |
 | --- | --- | --- | --- |
 | [`centralize-domain-literals`](docs/rules/centralize-domain-literals.md) | Fixed vocabulary has one owner | `if (job.status === JOB_STATUS.COMPLETED) {}` | Configure |
-| [`dependency-parameter-convention`](docs/rules/dependency-parameter-convention.md) | Dependencies enter through one explicit argument | `const load = (deps: DbDep) => (id: Id) => deps.db.load(id);` | `evoluDependencyInjection` |
-| [`dependency-wrapper-shape`](docs/rules/dependency-wrapper-shape.md) | Dependencies have distinct, collision-free contracts | `interface TimeDep { readonly time: Time; }` | `evoluDependencyInjection` |
+| [`dependency-parameter-convention`](docs/rules/dependency-parameter-convention.md) | Dependencies enter through one explicit argument | `const load = (deps: DbDep) => (id: Id) => deps.db.load(id);` | `dependencyInjection` |
+| [`dependency-wrapper-shape`](docs/rules/dependency-wrapper-shape.md) | Dependencies have distinct, collision-free contracts | `interface TimeDep { readonly time: Time; }` | `dependencyInjection` |
 | [`enforce-module-boundaries`](docs/rules/enforce-module-boundaries.md) | Features use declared public edges | `import { findProduct } from "../catalog/product.api.js";` | Configure |
 | [`imports-first`](docs/rules/imports-first.md) | Dependencies stay visible | `import { parse } from "./parse.js";` before executable code | `recommended` |
 | [`max-function-lines`](docs/rules/max-function-lines.md) | Logic stays reviewable | `function total(items) { return items.reduce(sum, 0); }` | `recommended`, `tigerstyle` |
 | [`max-function-parameters`](docs/rules/max-function-parameters.md) | APIs resist positional growth | `function search({ query, limit, cursor }) {}` | `recommended`, `tigerstyle` |
-| [`named-imports`](docs/rules/named-imports.md) | Imports name exact dependencies | `import { parseUser } from "./user.js";` | `evoluConventions` |
+| [`named-imports`](docs/rules/named-imports.md) | Imports name exact dependencies | `import { parseUser } from "./user.js";` | `conventions` |
 | [`no-barrel-files`](docs/rules/no-barrel-files.md) | Dependency edges stay direct | Define `export function charge() {}` in `charge.js` | `recommended` |
 | [`no-barrel-imports`](docs/rules/no-barrel-imports.md) | Imports reveal their owner | `import { charge } from "./charge.js";` | `recommended`, `effect` |
-| [`no-exported-dependency-instances`](docs/rules/no-exported-dependency-instances.md) | Composition roots own service instances | `const logger = createLogger();` | `evoluDependencyInjection` |
-| [`no-implicit-external-dependencies`](docs/rules/no-implicit-external-dependencies.md) | Hidden time and logging access becomes injectable | `const now = deps.time.now();` | `evoluDependencyInjection` |
-| [`no-namespace-exports`](docs/rules/no-namespace-exports.md) | Exports remain unique and searchable | `export const parseUser = () => {};` | `evoluConventions` |
-| [`no-over-depending`](docs/rules/no-over-depending.md) | Functions request only what they use | `const log = (deps: LoggerDep) => deps.logger.log("ready");` | `evoluDependencyInjection` |
+| [`no-exported-dependency-instances`](docs/rules/no-exported-dependency-instances.md) | Composition roots own service instances | `export const createDeps = () => ({ logger: createLogger() });` | `dependencyInjection` |
+| [`no-implicit-external-dependencies`](docs/rules/no-implicit-external-dependencies.md) | Hidden time, random, network, and storage access becomes injectable | `const now = deps.time.now();` | `dependencyInjection` |
+| [`no-namespace-exports`](docs/rules/no-namespace-exports.md) | Behavior is exported as searchable members, not namespaces | `export const parseUser = () => {};` | `conventions` |
+| [`no-over-depending`](docs/rules/no-over-depending.md) | Functions request only what they use | `const log = (deps: LoggerDep) => deps.logger.log("ready");` | `dependencyInjection` |
 | [`no-unasserted-return`](docs/rules/no-unasserted-return.md) | Returned call results carry evidence | `const user = await loadUser(); assert(user.id); return user;` | Configure |
 | [`no-unsafe-type-assertions`](docs/rules/no-unsafe-type-assertions.md) | Unknown data cannot bypass checks | `Schema.decodeUnknownSync(User)(input)` | `recommended` |
 | [`no-unvalidated-json-parse`](docs/rules/no-unvalidated-json-parse.md) | Parsed JSON is validated immediately | `Schema.decodeUnknownSync(Config)(JSON.parse(text))` | `recommended` |
-| [`prefer-arrow-functions`](docs/rules/prefer-arrow-functions.md) | Function syntax stays consistent | `export const createUser = (data) => ({ data });` | `evoluConventions` |
-| [`prefer-interface-over-type`](docs/rules/prefer-interface-over-type.md) | Object contracts remain extensible | `interface User { readonly id: string; }` | `evoluConventions` |
-| [`prefer-readonly-types`](docs/rules/prefer-readonly-types.md) | Contracts make mutation explicit | `interface User { readonly roles: ReadonlyArray<Role>; }` | `evoluConventions` |
+| [`prefer-arrow-functions`](docs/rules/prefer-arrow-functions.md) | Function syntax stays consistent | `export const createUser = (data) => ({ data });` | `conventions` |
+| [`prefer-interface-over-type`](docs/rules/prefer-interface-over-type.md) | Object contracts remain extensible | `interface User { readonly id: string; }` | `conventions` |
+| [`prefer-readonly-types`](docs/rules/prefer-readonly-types.md) | Contracts make mutation explicit | `interface User { readonly roles: ReadonlyArray<Role>; }` | `conventions` |
 | [`require-assertions`](docs/rules/require-assertions.md) | Function invariants become executable | `assert(result.length <= input.length); return result;` | `tigerstyle` |
 | [`require-contract-assertions`](docs/rules/require-contract-assertions.md) | Every input and computed return has runtime evidence | `assert(userId.length > 0); const user = load(userId); assert(user.id === userId); return user;` | `agentReadiness` |
-| [`sort-dependency-types`](docs/rules/sort-dependency-types.md) | Dependency contracts stay predictable | `type AppDeps = LoggerDep & TimeDep;` | `evoluDependencyInjection` |
-| [`top-down-declarations`](docs/rules/top-down-declarations.md) | Public contracts appear before details | `export interface User { readonly id: string; }` before private helpers | `evoluConventions` |
+| [`sort-dependency-types`](docs/rules/sort-dependency-types.md) | Dependency contracts stay predictable | `type AppDeps = LoggerDep & TimeDep;` | `dependencyInjection` |
+| [`top-down-declarations`](docs/rules/top-down-declarations.md) | Public contracts appear before details | `export interface User { readonly id: string; }` before private helpers | `conventions` |
 
 ### 2. Frontend and backend libraries
 

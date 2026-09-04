@@ -171,7 +171,10 @@ const legoRules = {
   [`${namespace}/require-consumer-owned-compound-usage`]: "error",
 };
 
-const evoluDependencyInjectionRules = {
+// Derived from Evolu's dependency-injection guide, but the underlying pattern
+// (explicit dependency contracts, composition-root instances, no ambient
+// external access) is a general architecture policy.
+const dependencyInjectionRules = {
   [`${namespace}/dependency-parameter-convention`]: "error",
   [`${namespace}/dependency-wrapper-shape`]: "error",
   [`${namespace}/no-exported-dependency-instances`]: "error",
@@ -180,7 +183,8 @@ const evoluDependencyInjectionRules = {
   [`${namespace}/sort-dependency-types`]: "error",
 };
 
-const evoluConventionsRules = {
+// Derived from Evolu's TypeScript conventions; equally general.
+const conventionsRules = {
   [`${namespace}/named-imports`]: "error",
   [`${namespace}/no-namespace-exports`]: "error",
   [`${namespace}/prefer-arrow-functions`]: "error",
@@ -201,14 +205,17 @@ Object.assign(plugin.configs, {
   react: flatConfig("react", reactRules),
   composition: flatConfig("composition", compositionRules),
   lego: flatConfig("lego", legoRules),
+  dependencyInjection: flatConfig(
+    "dependency-injection",
+    dependencyInjectionRules,
+  ),
+  conventions: flatConfig("conventions", conventionsRules),
+  // Attribution aliases kept for existing consumers.
   evoluDependencyInjection: flatConfig(
     "evolu-dependency-injection",
-    evoluDependencyInjectionRules,
+    dependencyInjectionRules,
   ),
-  evoluConventions: flatConfig(
-    "evolu-conventions",
-    evoluConventionsRules,
-  ),
+  evoluConventions: flatConfig("evolu-conventions", conventionsRules),
 });
 
 export default plugin;

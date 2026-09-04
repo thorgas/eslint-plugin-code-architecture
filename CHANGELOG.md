@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0-alpha.3
+
+- Redesign `no-implicit-external-dependencies` around built-in capability groups (`time`, `randomness`, `logging`, `environment`, `network`, `storage`, `locale`), all enabled by default. Custom `capabilities` now extend the built-ins instead of silently replacing them; narrow with `groups`. Selectors gain bare-global (`fetch`) and constructor (`new Date()`, `new WebSocket`) forms, global detection uses scope analysis so declared `globals` and type-only references behave correctly, and `create<Dependency>`/`createTest<Dependency>` factories are allowed automatically. **Breaking:** consumers that passed `capabilities` to replace the defaults must add `groups: []`.
+- Redesign `no-exported-dependency-instances` to detect the concept it names: a module-level instance created at import time by a constructor or a factory verb (`create`, `make`, `build`, `init`, `open`, `connect`, …) and exported directly, by alias, or as the default export. Member factories, `Object.freeze`, `await`, and TypeScript casts are followed. Definition factories such as `createContext` and `StyleSheet.create` are ignored by default; tune with `ignoredFactories`, `factoryPattern`, and `compositionRoots`.
+- Redesign `no-namespace-exports` to report only exported objects that bundle behavior (function members or references to functions) and exported TypeScript `namespace` declarations. Data objects such as configuration, lookup tables, migrations, and style objects are no longer reported, and PascalCase compound-component objects are allowed unless `allowCompoundComponents` is `false`.
+- Add generic `dependencyInjection` and `conventions` presets. `evoluDependencyInjection` and `evoluConventions` remain as attribution aliases with identical rules.
+
 ## 0.6.0-alpha.2
 
 - Add package/path exemptions to `named-imports` for APIs that require default or namespace imports.
