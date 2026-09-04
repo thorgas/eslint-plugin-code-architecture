@@ -359,7 +359,7 @@ The `dependencyInjection` and `conventions` presets are also opt-in and syntax-o
 
 ## Rule reference and examples
 
-Every rule has a compact passing example here, ordered from TypeScript to libraries, JSX composition, React, and React Native. Follow its link for failing examples, options, scope, and static-analysis limits. “Configure” means the rule needs project-specific vocabulary or component names; optional presets are never included by `strict`.
+Every rule has a compact passing example here, ordered from TypeScript to libraries, JSX composition, React, and React Native. Follow its link for failing examples, options, scope, and static-analysis limits. “Configure” means the rule needs project-specific vocabulary or component names; optional presets are never included by `strict`. For `centralize-domain-literals` and `enforce-module-boundaries`, the `domain-vocabulary` skill in [thorgas/skills](https://github.com/thorgas/skills) derives that configuration from the codebase instead of asking you to write lists by hand.
 
 ### 1. TypeScript
 
