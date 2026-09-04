@@ -1,0 +1,68 @@
+I need to improve and harden the eslint rules created in this repo and used in youmotion repo. my high level goal is to keep the rules high level/i don't wanna force users in order to have the rules working to supply long lists of variable names etc. the evolu rules should not be evolu specific because they are extremely good global architecture patterns that are extremely senior. following chat its the last critique from a dumber agent:
+The answer is mixed: several rules had real implementation weaknesses, several are intentionally strict opt-in conventions, and Youmotion’s migration contains a few exemptions that weaken the stated policy just to reach green.
+The VS Code guidance supports a narrower model: use custom rules for precise enforceable patterns, scope them through `eslint.config`, and avoid imposing style globally without a strong reason. [VS Code’s custom ESLint guide](https://github.com/microsoft/vscode/wiki/Custom-eslint-rules) explicitly distinguishes repository-wide rules from file-specific rules and says stylistic choices are usually left to area owners.
+## Findings
+| Category | Assessment |
+|---|---|
+| Fixed implementation defects | Alpha.1/alpha.2 substantially improved contract assertions, imports, readonly types, arrows, declaration ordering, and returned-call detection. |
+| Remaining implementation defects | `no-implicit-external-dependencies`, `no-exported-dependency-instances`, and `no-namespace-exports` still need work. |
+| Excessively broad policy | Enabling all Evolu conventions and all `*Dep` rules across Youmotion is not meaningful merely because the rules exist. |
+| Reasonable exemptions | Framework export shapes, required default/namespace imports, generators, recursion, hoisting, infrastructure roots, tests, and the explicitly approved settings store. |
+| Questionable exemptions | Disabling return checking in a “complete contract” rule, broad whole-file baselines, and globally enabling rules whose detector cannot distinguish the architectural concept it claims to enforce. |
+### 1. `no-implicit-external-dependencies` needs another plugin change
+The engine is configurable, but its genericity is overstated.
+The defaults only know `Date.now` and `console.*` in [no-implicit-external-dependencies.js](/Users/timhorgas/git/eslint-plugin-code-architecture/rules/no-implicit-external-dependencies.js:6). Youmotion supplies only `Date.now` in [eslint.config.mjs](/Users/timhorgas/git/Youmotion/eslint.config.mjs:244), and supplying `capabilities` replaces the defaults—silently removing the logger check.
+It also cannot infer arbitrary external effects such as Expo APIs, networking, storage, randomness, databases, or imported service locators unless explicitly configured. That limitation is reasonable for a syntax-based rule; the API and documentation are the problem.
+Recommended redesign:
+- Keep defaults unless the consumer explicitly requests replacement.
+- Add `additionalCapabilities`, or a `capabilityMode: "extend" | "replace"` option.
+- Provide reusable groups for time, randomness, logging, environment, platform, networking, and storage.
+- Continue requiring explicit configuration for project-specific service locators.
+- Document that the rule enforces configured capabilities, not every possible external dependency.
+### 2. Two rules are still too heuristic for broad enforcement
+`no-exported-dependency-instances` has no configuration schema and recognizes only names such as:
+```ts
+export const logger = createLogger();
+```
+It depends on the variable name being the lower-cased factory suffix. It both misclassifies ordinary factory products and misses aliases, member factories, default exports, wrappers, and many re-export shapes. See [no-exported-dependency-instances.js](/Users/timhorgas/git/eslint-plugin-code-architecture/rules/no-exported-dependency-instances.js:14).
+`no-namespace-exports` currently treats every exported object literal as a namespace. It cannot distinguish a service namespace from immutable configuration, lookup data, constants, or a legitimate compound-component API. See [no-namespace-exports.js](/Users/timhorgas/git/eslint-plugin-code-architecture/rules/no-namespace-exports.js:26).
+These should either:
+- require explicit path/name/factory configuration, or
+- remain narrow Evolu-source conventions and not be presented as generic architectural guarantees.
+Adding more automatic exemptions would obscure the ambiguity rather than solve it.
+### 3. Youmotion’s contract configuration does not implement the documented contract
+This is the clearest questionable exemption:
+```js
+checkParameters: true,
+checkReturns: false,
+minimumStatements: 5,
+```
+That configuration is in [Youmotion’s ESLint config](/Users/timhorgas/git/Youmotion/eslint.config.mjs:356).
+A rule with return checking disabled is not enforcing a complete input-and-output contract. Functions below five statements are also excluded. This conflicts with the plugin’s documented recommendation that `require-contract-assertions` cover complete contracts.
+The disjoint rule scopes are correct:
+- domain: `require-contract-assertions`
+- application/navigation: `no-unasserted-return`
+- broad baseline: `require-assertions`
+But Youmotion should describe its domain rule as partial parameter-contract adoption, or turn return checking back on. It should not claim complete contracts while disabling half of the contract.
+### 4. Most other exemptions are defensible
+The following reflect real JavaScript/TypeScript or framework constraints:
+- Required default and namespace import APIs.
+- Generators, recursive functions, hoisted declarations, and framework exports.
+- Runtime dependency preservation in declaration ordering.
+- Test/Harness exclusions.
+- Infrastructure and composition roots owning external capabilities.
+- The explicitly reviewed `appSettingsStore` exception.
+The ten exact `prefer-arrow-functions` file exemptions and three declaration-order baseline files are acceptable migration debt, but should be documented as baselines with an eventual removal criterion—not permanent proof that those files are architecturally special.
+### 5. The original activation strategy was too broad
+The plugin itself correctly keeps Evolu and agent-readiness policies outside `strict`; see [plugin.js](/Users/timhorgas/git/eslint-plugin-code-architecture/plugin.js:174). Therefore, the initial “enable every possible rule” audit was useful as an adversarial inventory, but it was never an appropriate production configuration.
+In particular, enabling all four `*Dep` shape rules across `src/**` in [Youmotion’s configuration](/Users/timhorgas/git/Youmotion/eslint.config.mjs:221) produces a green result without meaningful protection because Youmotion does not yet use that vocabulary.
+## Recommendation before implementation
+I would make the next alpha focus on:
+1. Make external capabilities additive/configurable and document the detection boundary.
+2. Redesign or narrow the two ambiguous singleton/namespace rules.
+3. Add production-derived adversarial tests for aliases, default exports, member factories, object data, capability replacement, and imported APIs.
+4. Correct Youmotion’s contract-policy mismatch.
+5. Document conventions as opt-in policies, not universal correctness rules.
+6. Keep file scoping in consumer configuration instead of making rules “generic” through growing automatic framework heuristics.
+So the dominant problem is no longer that all the new rules are simply “not good enough.” Alpha.2 fixed several concrete defects. The remaining problems are concentrated in three rules and in consumer policy choices—especially the incomplete contract configuration and enabling inert Evolu rules globally.
+No files or releases were changed; this was a read-only analysis.
