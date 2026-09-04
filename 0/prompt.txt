@@ -1,0 +1,194 @@
+<task-notification>
+<task-id>a2d8ce628a47ce6a3</task-id>
+<tool-use-id>toolu_01WmGv41pUY1UWAp3vPCSaQQ</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-timhorgas-git-eslint-plugin-code-architecture/b5732bd4-2e0c-49fd-91a7-5e1babb4708d/tasks/a2d8ce628a47ce6a3.output</output-file>
+<status>completed</status>
+<summary>Agent "Review DI/convention rules" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have enough to write the review.
+
+## Review
+
+### Central defect shared by all `dependency-*` rules (dependency-helpers.js)
+**High.** Everything hinges on the regex `^[A-Z][A-Za-z0-9]*Dep$` (dependency-helpers.js:1). This is a naming heuristic standing in for the architectural concept "dependency wrapper type," not type-based detection. Consequences ripple through every rule below:
+- Any interface ending in `Dep` that isn't actually a DI wrapper (e.g. `LaptopDep` meaning "deprecated laptop") gets swept in — false positive.
+- A real wrapper aliased/re-exported under a non-`Dep` name (`export type { TimeDep as Clock }`, or `import { TimeDep as T }`) is invisible — false negative.
+- No use of the type checker: `AppDeps = TimeDep &amp; LoggerDep` resolved through an imported type alias in another file is never expanded (docs admit this for `dependency-parameter-convention` but the same hole exists in `sort-dependency-types` and `no-over-depending`).
+**Redesign:** detect the pattern structurally/semantically — e.g. via `@code-architecture/dependency-wrapper` JSDoc tag, a branded marker type, or TS type-checker introspection (does the type have exactly one readonly member and is it used as an object-capability contract) — rather than a `*Dep` suffix regex. At minimum, make the suffix configurable instead of hard-coded so consumers aren't forced to name everything `XyzDep`.
+
+### dependency-parameter-convention — High
+- False negative: `dependencyParameter` only scans `node.params` directly; a dependency type buried in a destructured parameter (`({ deps }: { deps: TimeDep })`) or in a generic constraint isn't an `Identifier`/simple param, so `dependency.parameter.type !== "Identifier"` reports `nameDeps` even for legitimate curried style, while true violations via `function f(x: TimeDep, y: TimeDep)` (two references, same wrapper) collapse to one `dependencyArguments` check that still works, but `function f({time}: TimeDep)` bypasses the "named deps" check entirely since destructured patterns are `ObjectPattern`, not `Identifier` — reported as `nameDeps` even though there's no way to satisfy it structurally without renaming, forcing an awkward `(deps: TimeDep) =&gt; { const {time} = deps; ... }` workaround. Not documented as a limitation.
+- Overloads: `TSDeclareFunction` (ambient overload signatures) aren't in the `:function` selector set typically, but `TSEmptyBodyFunctionExpression`/interface method signatures with `Dep` params (e.g. inside a `TSInterfaceDeclaration` method) are visited too, incorrectly forcing `deps` naming convention onto interface method declarations where no implementation curry story exists.
+- Docs claim "does not resolve aliases such as `AppDeps`" — accurate, but this materially defeats the rule for any real codebase using aggregate `AppDeps` types, which the sibling rules' own examples promote. This is a fundamental architecture gap, not a corner case.
+
+### dependency-wrapper-shape — High
+- False positive: any interface named e.g. `LookupDep` where "Lookup" is unrelated to dependency injection ("a `Dep`-suffixed lookup table type") is force-shaped into a DI wrapper. Purely nominal.
+- False negative: a wrapper written as `export interface TimeDep extends BaseDep {}` (member inherited via `extends`, zero own members) — `members.length !== 1` fires `singleProperty` even though it may be a legitimate re-export-with-narrowing pattern; conversely, a `type TimeDep = SomeOtherAlias` (not a `TSTypeLiteral`) silently returns `null` from `wrapperMembers` and is never checked — a completely unchecked escape hatch for a `*Dep`-suffixed alias.
+- `memberType.typeArguments?.params.length &gt; 0` rejects any wrapper property typed with generics, e.g. `readonly time: Time&lt;Utc&gt;` — a legitimate parameterized capability type — reported as wrong `propertyType` with a message that says "must wrap the 'Time' dependency type" even though it does, just parameterized.
+- Naming coupling: property name and wrapped type name are *derived* from the wrapper's own name via string slicing (`name.slice(0, -3)`, lowercase first letter). `AbcDep` must expose exactly `abc: Abc`. This directly violates the plugin owner's goal — it forces every dependency wrapper's file-local names into a fixed lockstep triple, not a generic architectural shape ("exactly one readonly member, name matches the type it wraps" could be checked without asserting *what* the name must be, e.g. by comparing member key derived from type name generically already — but it forbids `readonly clockService: Clock` for `ClockDep`, which is still an unambiguous, non-clashing single-property wrapper).
+
+### no-over-depending — Medium/High
+- False negative (high): `used` tracking only recognizes `MemberExpression` on an identifier literally named `deps` (`node.object.name !== "deps"`). Destructuring `const { time } = deps;` then using `time.now()` never touches `deps.time` as a MemberExpression, so `no-over-depending` cannot see the use and will report `unusedDependency` for something actually used — false positive triggered by an idiomatic destructuring style the wrapper-shape/parameter-convention rules elsewhere don't forbid.
+- False negative: aliasing `const d = deps;` then `d.time.now()` is invisible; `markAllUsed` only special-cases identifiers literally named `deps` passed to calls/returns/spreads, so `const alias = deps; return alias;` fails to mark all as used (false positive: reports unused deps that are actually forwarded via alias).
+- Optional chaining `deps?.time?.now()` — `MemberExpression` handler doesn't check for `OptionalMemberExpression`/`ChainExpression` wrapping; TS-ESLint typically still parses `?.` as `MemberExpression` with `optional: true`, so likely fine, but worth confirming since `node.computed` guard only excludes bracket access, not chain nodes.
+- Nested function reference to outer `deps` from a param shadow: if an inner function also declares its own `deps` parameter (shadowing), `nearestTrackedFunction` still walks up correctly, but a `CallExpression` argument `deps` inside the inner function marks the *inner* tracked function's dependencies all-used even if the inner `deps` is unrelated in type — since `markAllUsed` only checks `node.name === "deps"`, not identity/scope resolution. Two nested functions both named `deps` params of different wrapper types get cross-contaminated.
+
+### sort-dependency-types — Low/Medium
+- Reasonable and narrowly scoped; only flags intersections where every member is directly a `*Dep`/`Partial&lt;*Dep&gt;` reference, explicitly bailing on mixed refinement intersections — a defensible, low-risk design.
+- Medium: doesn't handle nested intersections written across multiple lines/parenthesized groups, e.g. `(TimeDep &amp; LoggerDep) &amp; FileSystemDep` — `TSIntersectionType.types` for the outer node includes a `TSParenthesizedType`(or the nested `TSIntersectionType` itself depending on parser flattening), which `dependencyReferences` doesn't unwrap for parens, so this legal equivalent form is silently skipped (false negative) rather than sorted or explicitly documented as ignored.
+- Doc gap: doesn't state whether relative ordering is case-sensitive/locale-dependent (`localeCompare` behavior for mixed-case wrapper names like `HTTPClientDep` vs `HttpClientDep`) — minor.
+
+### named-imports — Low
+- Solid, generic, uses minimatch glob options rather than a name list — good example of the pattern the owner wants. Minor gap: `ImportDefaultSpecifier` combined with named specifiers in one declaration (`import Foo, { bar } from "x"`) reports only the default specifier node — correct, but doc's "Some packages... require a default or namespace shape" examples don't show mixed import statements, worth a doc example.
+- No handling of `export { default } from "./x"` / `export * as ns from "./x"` re-export shapes, which structurally mirror default/namespace imports but bypass the rule entirely (false negative, medium) since only `ImportDeclaration` is visited, not `ExportAllDeclaration`/`ExportNamedDeclaration` with `source`.
+
+### prefer-arrow-functions — Medium
+- Option surface (`allowedNames`, `allowedFiles`) is exactly the "long list of names/files" anti-pattern the owner wants to avoid; acceptable as escape hatches but the doc frames them as first-class recommended options rather than last-resort.
+- False negative: `allowRecursive`/`allowHoisted` detection resolves via `context.sourceCode.getScope(node).upper?.set.get(name)` — for a `FunctionDeclaration` this is the function's own name typically bound in the *enclosing* scope, but for hoisting checks this only looks at `upper` scope, missing named function expressions bound inside their own scope (`const f = function fact(n) { return n &lt;= 1 ? 1 : n * fact(n-1); }` — the inner `fact` binding lives in the function-expression's own scope, not `upper`), so `allowRecursive` won't recognize this classic recursive-named-function-expression pattern (false negative — rule reports `useArrow` even with the option enabled, or worse, silently mis-detects).
+- Class methods and object method shorthand functions aren't function declarations/expressions in the AST sense checked (`FunctionExpression` handler does catch object/class method values, but reports "useArrow" for `class Foo { method() {} }internally — wait: those are `FunctionExpression` nodes too under `MethodDefinition`/`Property`, so `useArrow` misfires on class methods, which cannot be arrow functions in JS at all. This is a **false positive of high severity**: e.g. `class Repo { getAll(): Item[] { return []; } }` — the method's value is a `FunctionExpression`, `isAllowed` returns false unless excepted, and the rule reports "Use an arrow function instead of the function keyword" for a construct where that fix is a syntax error (class methods can't be declared as arrow-typed class fields without changing semantics/API). Docs never mention or exempt class methods.
+
+### prefer-interface-over-type — Low
+- False negative: `type Foo = { a: string } | { b: string }` — a union of object literals — isn't flagged (type alias, but `typeAnnotation.type` is `TSUnionType`, not `TSTypeLiteral`), consistent with doc's stated exception for unions, fine.
+- False negative: `type Foo = SomeGeneric&lt;{ a: string }&gt;` (object literal wrapped in a generic) also isn't caught — reasonable, not documented as excluded but low severity.
+- Straightforward, low risk overall; good example of a structural, non-naming rule.
+
+### prefer-readonly-types — Medium
+- `TSTypeReference` check only flags bare `Array`/`Map`/`Set`/`Record` by identifier name; misses index-signature interface members and computed keys — minor.
+- Medium false negative: `collectionScope: "contracts"` walk (`isContractType`) stops climbing at the first `VariableDeclarator`/function boundary, meaning a `Map` declared as a *return type* of an interface method (`interface Foo { getCache(): Map&lt;string, number&gt;; }`) — its ancestor chain hits `TSInterfaceDeclaration` before any `VariableDeclarator`, so it's correctly caught; but a `Map` used inside a function parameter type of a contract method type literal nested inside a `type Handler = (m: Map&lt;string,string&gt;) =&gt; void` — the walk hits `TSTypeAliasDeclaration` fine. Low-impact edge cases; the rule's logic is mostly sound and generic. Docs are accurate.
+
+### top-down-declarations — Medium
+- `declarationRank` treats `ClassDeclaration` the same as `VariableDeclaration` (rank 3, "private implementation details") even when exported (`export class Foo {}` triggers rank 2 via the `ExportNamedDeclaration` branch, correctly), but a *non-exported* `abstract class` used as a shared contract (common in OO-style TS) is demoted to "implementation detail" tier alongside truly private helpers — an architecturally significant class contract gets the same rank as leaf helpers, no distinction. Low/medium.
+- `preserveRuntimeDependencies` walk only inspects `scope.variables` in the *module* scope for identifiers referenced inside the out-of-order statement; it doesn't account for function declarations that reference each other via hoisting call graphs indirectly (a function ranked 3 that's referenced by an exported const at rank 2 defined earlier, forcing a specific order) — the check is one-directional (does statement depend on something earlier) but not "does something earlier depend on this being after it," so it can still suggest reorderings that break correct call-order presentation in edge cases. Medium, hard to hit in practice.
+- Docs are accurate and match implementation reasonably well; no major doc/behavior mismatch found here.
+
+### Cross-cutting documentation issues
+- **Medium:** None of the `dependency-*` docs disclose the hard-coded `*Dep` regex as a *configuration* limitation — they present it as an architectural convention rather than flagging that it's the sole detection mechanism (no type-checker fallback), which is the single biggest blocker to the stated goal of "generic, non-Evolu-specific" rules.
+- **Low:** All docs reference `evolu.dev` URLs exclusively — ties the plugin narratively to one project despite the stated goal of being a generic architecture plugin; consider decoupling doc language/URLs from Evolu-specific docs pages, or at least adding a generic architectural rationale independent of the external link.</result>
+<usage><subagent_tokens>55035</subagent_tokens><tool_uses>5</tool_uses><duration_ms>73984</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a5e29041451c1edbd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-timhorgas-git-eslint-plugin-code-architecture/b5732bd4-2e0c-49fd-91a7-5e1babb4708d/tasks/a5e29041451c1edbd.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix DI and arrow rules" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All tests pass now (the earlier require-assertions failure was transient/from concurrent work; it's clean now too). Task complete.
+
+## Summary
+
+Fixed three defects in `/Users/timhorgas/git/eslint-plugin-code-architecture`:
+
+1. **`rules/prefer-arrow-functions.js`** — `FunctionExpression` handler now skips nodes whose parent is a `MethodDefinition`, `TSAbstractMethodDefinition`, or a `Property` with `method: true`/`kind: get|set`, so class methods, constructors, object-literal methods, and accessors are no longer reported. Doc updated (`docs/rules/prefer-arrow-functions.md`) to note methods are never reported and to reframe `allowedNames`/`allowedFiles` as a last-resort migration baseline rather than a recommended option.
+
+2. **`rules/no-over-depending.js`** — Rewritten to resolve the `deps` parameter via `sourceCode.getDeclaredVariables(node)` and walk `variable.references` instead of matching the literal name `"deps"` globally. Non-computed member reads (`deps.time`) mark just that property; destructuring (`const { time } = deps`) marks only destructured keys; rest destructuring, aliasing (`const d = deps`), and any other read (call/return/spread/forwarding) mark everything used. This eliminates false positives for destructuring/aliasing and prevents nested functions with their own `deps` parameter from cross-contaminating the outer function's usage (previous global-name matching caused this). Extracted `collectUsedProperties`/`markDestructuredPropertiesUsed` helpers to satisfy `architecture/max-function-lines`. Old `CallExpression`/`NewExpression`/`ReturnStatement`/`SpreadElement` handlers removed, subsumed by the reference walk. Doc updated accordingly.
+
+3. **`rules/dependency-wrapper-shape.js`** — Removed the `memberType.typeArguments?.params.length &gt; 0` check that rejected wrapped types with type arguments (e.g. `Time&lt;Utc&gt;`). Doc updated with an example.
+
+Added tests: prefer-arrow-functions (class/object methods/accessors), no-over-depending (destructuring, rest destructuring, aliasing, forwarding, nested-function isolation), dependency-wrapper-shape (type-argument wrapper). `## Production-derived example` sections in docs left intact.
+
+`bun test`: 255 pass, 0 fail. `bunx eslint .` on the three changed rule/test files: clean. Two pre-existing lint errors (`rules/declarative-components.js`, untracked `tests/probe1.test.js`) belong to unrelated, already-present uncommitted work in the tree (not part of the three assigned defects, and outside the files I was permitted to touch) — left untouched.</result>
+<usage><subagent_tokens>80072</subagent_tokens><tool_uses>34</tool_uses><duration_ms>144781</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab6784069449205d4</task-id>
+<tool-use-id>toolu_0194rx6NZqdtACUmo13KK2Yr</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-timhorgas-git-eslint-plugin-code-architecture/b5732bd4-2e0c-49fd-91a7-5e1babb4708d/tasks/ab6784069449205d4.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix assertion detection helpers" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Clean — no errors in any files I touched. Task complete.
+
+## Summary
+
+**Files changed:**
+- `rules/assertion-helpers.js` — added `findVariable`, `isAssertionModuleSource`, `isAssertionImportIdentifier`, `isAssertsFunctionIdentifier`, and extended `isAssertionCall(node, assertionNames, sourceCode)` with an optional `sourceCode` param for structural detection.
+- `rules/require-assertions.js`, `rules/no-unasserted-return.js`, `rules/require-contract-assertions.js` — now pass `context.sourceCode` into `isAssertionCall`; deduped the local `findVariable` in `require-contract-assertions.js` in favor of the shared export.
+- `tests/require-assertions.test.js`, `tests/require-contract-assertions.test.js`, `tests/no-unasserted-return.test.js` — added tests for namespace/default imports, renamed named imports, one-level local aliasing, `asserts`-predicate functions, and a negative case (unrelated module under an assert-like alias name is not recognized).
+- `docs/rules/require-assertions.md`, `docs/rules/no-unasserted-return.md`, `docs/rules/require-contract-assertions.md` — reframed `assertionNames` as a textual fallback, documented the structural rules as primary.
+
+**New detection rules (in order of precedence, all still fall back to exact-name `assertionNames` matching):**
+1. Callee resolves via ESLint scope to an import whose module source is `assert`, `node:assert`, `node:assert/strict`, `assert/strict`, `tiny-invariant`, `invariant`, or any specifier whose last path segment is `assert`/`asserts`/`assertions`/`invariant`.
+2. Member calls off such an import count regardless of member name (`a.ok(x)`, `nodeAssert.strictEqual(...)`).
+3. One level of local aliasing is followed (`const a = nodeAssert;` then `a.ok(x)`).
+4. A direct call to a same-file function (declaration, `const` arrow, or `TSDeclareFunction`) whose return type is a TS `asserts` predicate counts as an assertion.
+5. `assertionNames` remains purely textual on the printed callee name, independent of import source — so `import { isEqual as checkEqual } from "lodash"` is not excused just because it's alias-shaped.
+
+**Verification:** `bun test` → 269 pass, 0 fail (isolated confirmation that my 3 files' diff alone caused no regressions — full-repo run had transient flakiness from unrelated stray untracked probe test files, not from my changes). `bunx eslint` on all files I touched → 0 errors, 0 warnings. Repo-wide `bunx eslint .` shows pre-existing errors only in `rules/declarative-components.js` and untracked `tests/probe*.test.js`, both unrelated to this task and present before my changes (confirmed via `git stash`).
+
+No tests could not be made to pass — everything is green.</result>
+<usage><subagent_tokens>106989</subagent_tokens><tool_uses>51</tool_uses><duration_ms>227527</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a137dd1d8469390dc</task-id>
+<tool-use-id>toolu_01LTTyiGoM1H4FZTSJ2Jp4hp</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-timhorgas-git-eslint-plugin-code-architecture/b5732bd4-2e0c-49fd-91a7-5e1babb4708d/tasks/a137dd1d8469390dc.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix module and safety rules" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All four claimed defects were verified true and fixed. No commits were made (not requested).
+
+## Summary
+
+**Files changed** (4 rules + 4 docs + 4 test files; new fixtures under `tests/fixtures/no-barrel-imports/`):
+- `rules/no-barrel-files.js`, `docs/rules/no-barrel-files.md`, `tests/no-barrel-files.test.js`
+- `rules/no-barrel-imports.js`, `docs/rules/no-barrel-imports.md`, `tests/no-barrel-imports.test.js`
+- `rules/no-unvalidated-json-parse.js`, `docs/rules/no-unvalidated-json-parse.md`, `tests/no-unvalidated-json-parse.test.js`
+- `rules/effect-error-handling.js`, `docs/rules/effect-error-handling.md`, `tests/effect-error-handling.test.js`
+
+All 4 claims were verified true with probe tests before fixing (nothing was false).
+
+1. **no-barrel-files.js** — `ExportNamedDeclaration` without a `source` now resolves each specifier's local binding via ESLint scope; if it's an `ImportBinding`, it's reported. Locally-declared re-exports remain allowed. Added `allowTypeExports` option (default `false`) that skips `export type {...} from` and `export { type X } from`.
+
+2. **no-barrel-imports.js** — Added filesystem-backed detection (`existsSync`/`statSync`) resolving relative specifiers against `context.filename`; if the resolved path is a directory containing an `index.{js,jsx,ts,tsx,mjs,cjs,mts,cts}`, it's flagged as `localBarrel`, catching `import x from "./feature"` / `"."` / `".."`. No new alias option added (none existed).
+
+3. **no-unvalidated-json-parse.js** — `validationCalls` entries are now matched via `minimatch` against the full dotted callee name; added the 9 requested glob defaults alongside the existing `Schema.*` defaults, so `MySchema.parse(JSON.parse(x))` is now accepted by default. Also added guard-condition tolerance: a reference used only as the test of `if`/ternary/`while` (through `!`/logical operators) before the validating call no longer defeats the single-reference check, fixing the `if (!raw) throw ...` false positive.
+
+4. **effect-error-handling.js** — Added scope-based resolution (`resolveCalleeName`) so an identifier/member object bound via `ImportBinding` to `effect`, `effect/Effect`, or any `effect/*` submodule is normalized to `Effect.xxx` before matching, covering namespace and named imports (an identically-named import from an unrelated package is correctly left alone). Also extended silent-fallback detection to `Effect.catchTag(tag, handler)` and `Effect.catchTags({...})`, and to `Effect.succeed(null)` in addition to `Effect.succeed(undefined)`/`Effect.void`.
+
+**Verification**: `bun test` → 294 pass, 0 fail (repo-wide). `bunx eslint` on all touched files → clean. Repo-wide `bunx eslint .` shows only 3 pre-existing failures in files outside this task's scope (`declarative-components.js`, `no-raw-design-values.js`, and two untracked `tests/probe*.tmp.test.js` files that already existed before this session) — none touched or introduced by this work.
+
+Doc updates kept the '## Production-derived example' sections intact and added explanatory paragraphs for each new behavior/option.
+
+No rough edges remain from the 4 items; nothing was left unfixed.</result>
+<usage><subagent_tokens>115281</subagent_tokens><tool_uses>62</tool_uses><duration_ms>321737</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a13e77a759a902a8b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-timhorgas-git-eslint-plugin-code-architecture/b5732bd4-2e0c-49fd-91a7-5e1babb4708d/tasks/a13e77a759a902a8b.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix composition rules" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Report
+
+All four claims were verified true via probe tests before fixing, then fixed. No changes committed.
+
+**Files changed** (all within scope):
+- `rules/declarative-components.js`, `rules/require-compound-component-api.js`, `rules/no-root-owned-compound-parts.js`, `rules/require-consumer-owned-compound-usage.js`
+- Tests: `tests/declarative-components.test.js`, `tests/require-compound-component-api.test.js`, `tests/no-root-owned-compound-parts.test.js`, `tests/require-consumer-owned-compound-usage.test.js`
+- Docs: all four `docs/rules/*.md` for these rules (Production-derived example sections kept intact)
+
+**Fixes:**
+1. `declarative-components`: (a) `forbidInlineFunctions` now only reports functions that are statement-level `FunctionDeclaration`s or `const x = () =&gt; ...` bindings — not JSX-attribute callbacks, `.map()` callbacks, or `useCallback` bodies. (b) Component detection now requires both the name pattern match AND `containsJsx` (from `composition-helpers`) on the function body; a capitalized non-JSX function is never treated as a component. Had to update two existing tests to add JSX returns since they previously relied on non-JSX "components" being detected.
+2. `require-compound-component-api`: (a) Boundary/member detection now requires the referenced binding to actually resolve to a JSX-returning function (or a wrapped one via `forwardRef`/`memo`); an object with a `Root`/`Provider` key pointing to non-component functions is now ignored entirely rather than being force-validated. (b) Added `Object.assign(Root, {...})` (and `export default Object.assign(...)`) support, treating the first argument as the boundary and the object's keys as parts.
+3. `no-root-owned-compound-parts`: When the file defines the compound object (literal or `Object.assign` form), its member names are now the namespace ground truth for direct JSX identifiers — prefix matching is used only as a fallback when no compound object exists. Also added `Object.assign(Root, {...})` namespace recognition.
+4. `require-consumer-owned-compound-usage`: `Object.assign(Root, {...})`-built locals now register as compound namespaces alongside object literals.
+
+**Verification:** `bun test` (33/33 pass for the four rules + documentation test) and `bunx eslint` scoped to the touched files are clean. Note: `bun test`/`bunx eslint .` across the whole repo shows pre-existing failures/errors in files outside my allowed scope (`tests/probe.tmp.test.js`, `tests/probe2.tmp.test.js`, `tests/no-raw-design-values.test.js`, `rules/no-raw-design-properties.js`, `rules/no-raw-design-values.js`, `rules/prefer-design-system-components.js`, plus many other modified-but-untouched-by-me files) that were already present/modified in the working tree before this session started — not introduced by this work and out of scope per the file restriction.
+
+No claims were found false; nothing was left unfixed within the given scope.</result>
+<usage><subagent_tokens>137941</subagent_tokens><tool_uses>55</tool_uses><duration_ms>424315</duration_ms></usage>
+</task-notification>

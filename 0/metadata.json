@@ -1,0 +1,285 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M1NQ8QNMQ2TZC1JXQ59V5KQ6",
+  "session_id": "b5732bd4-2e0c-49fd-91a7-5e1babb4708d",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-04T08:06:25.110113Z",
+  "branch": "codex/evolu-agent-readiness-bundle",
+  "checkpoints_count": 6,
+  "save_step_count": 5,
+  "files_touched": [
+    "docs/rules/declarative-components.md",
+    "docs/rules/dependency-wrapper-shape.md",
+    "docs/rules/effect-error-handling.md",
+    "docs/rules/no-barrel-files.md",
+    "docs/rules/no-barrel-imports.md",
+    "docs/rules/no-design-identity-overrides.md",
+    "docs/rules/no-over-depending.md",
+    "docs/rules/no-raw-design-properties.md",
+    "docs/rules/no-raw-design-values.md",
+    "docs/rules/no-root-owned-compound-parts.md",
+    "docs/rules/no-unasserted-return.md",
+    "docs/rules/no-unvalidated-json-parse.md",
+    "docs/rules/prefer-arrow-functions.md",
+    "docs/rules/prefer-design-system-components.md",
+    "docs/rules/require-assertions.md",
+    "docs/rules/require-compound-component-api.md",
+    "docs/rules/require-consumer-owned-compound-usage.md",
+    "docs/rules/require-contract-assertions.md",
+    "docs/rules/require-interactive-component-contract.md",
+    "rules/assertion-helpers.js",
+    "rules/declarative-components.js",
+    "rules/dependency-wrapper-shape.js",
+    "rules/design-system-helpers.js",
+    "rules/effect-error-handling.js",
+    "rules/no-barrel-files.js",
+    "rules/no-barrel-imports.js",
+    "rules/no-design-identity-overrides.js",
+    "rules/no-over-depending.js",
+    "rules/no-raw-design-properties.js",
+    "rules/no-raw-design-values.js",
+    "rules/no-root-owned-compound-parts.js",
+    "rules/no-unasserted-return.js",
+    "rules/no-unvalidated-json-parse.js",
+    "rules/prefer-arrow-functions.js",
+    "rules/prefer-design-system-components.js",
+    "rules/require-assertions.js",
+    "rules/require-compound-component-api.js",
+    "rules/require-consumer-owned-compound-usage.js",
+    "rules/require-contract-assertions.js",
+    "rules/require-interactive-component-contract.js",
+    "tests/declarative-components.test.js",
+    "tests/dependency-wrapper-shape.test.js",
+    "tests/effect-error-handling.test.js",
+    "tests/fixtures/no-barrel-imports/feature/index.ts",
+    "tests/fixtures/no-barrel-imports/index.ts",
+    "tests/fixtures/no-barrel-imports/not-a-barrel/other.ts",
+    "tests/no-barrel-files.test.js",
+    "tests/no-barrel-imports.test.js",
+    "tests/no-design-identity-overrides.test.js",
+    "tests/no-over-depending.test.js",
+    "tests/no-raw-design-properties.test.js",
+    "tests/no-raw-design-values.test.js",
+    "tests/no-root-owned-compound-parts.test.js",
+    "tests/no-unasserted-return.test.js",
+    "tests/no-unvalidated-json-parse.test.js",
+    "tests/prefer-arrow-functions.test.js",
+    "tests/prefer-design-system-components.test.js",
+    "tests/require-assertions.test.js",
+    "tests/require-compound-component-api.test.js",
+    "tests/require-consumer-owned-compound-usage.test.js",
+    "tests/require-contract-assertions.test.js",
+    "tests/require-interactive-component-contract.test.js"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "e03c3f9b19c8",
+  "checkpoint_transcript_start": 253,
+  "transcript_lines_at_start": 253,
+  "compact_transcript_start": 40,
+  "token_usage": {
+    "input_tokens": 1406,
+    "cache_creation_tokens": 88045,
+    "cache_read_tokens": 6851012,
+    "output_tokens": 29048,
+    "api_call_count": 34,
+    "subagent_tokens": {
+      "input_tokens": 452,
+      "cache_creation_tokens": 537285,
+      "cache_read_tokens": 17869731,
+      "output_tokens": 41009,
+      "api_call_count": 226
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01RRqY2FmGd2WKKu2TFUkHXQ",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "implementation-delivery"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "e03c3f9b19c8",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 17,
+        "end": 18,
+        "entry_ids": [
+          "47091d1f-7043-4bf5-b318-df5e1580958b"
+        ],
+        "tool_use_id": "toolu_01RRqY2FmGd2WKKu2TFUkHXQ"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01RRqY2FmGd2WKKu2TFUkHXQ"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: implementation-delivery",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-04T08:06:25.011729Z",
+    "agent_lines": 1012,
+    "agent_removed": 142,
+    "human_added": 784,
+    "human_modified": 193,
+    "human_removed": 0,
+    "total_committed": 1989,
+    "total_lines_changed": 2133,
+    "agent_percentage": 54.10220346929208,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 172,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.json": 84,
+        ".codex/hooks.json": 88
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 385,
+      "user_lines_removed": 8,
+      "agent_lines_added": 551,
+      "agent_lines_removed": 84,
+      "user_added_per_file": {
+        ".claude/settings.json": 84,
+        ".codex/hooks.json": 88,
+        "docs/rules/dependency-wrapper-shape.md": 1,
+        "docs/rules/no-over-depending.md": 3,
+        "docs/rules/prefer-arrow-functions.md": 3,
+        "rules/no-unvalidated-json-parse.js": 12,
+        "tests/declarative-components.test.js": 36,
+        "tests/no-unasserted-return.test.js": 33,
+        "tests/probe.tmp.test.js": 93,
+        "tests/require-contract-assertions.test.js": 32
+      },
+      "user_removed_per_file": {
+        "docs/rules/dependency-wrapper-shape.md": 1,
+        "docs/rules/no-over-depending.md": 1,
+        "docs/rules/prefer-arrow-functions.md": 1,
+        "rules/no-unvalidated-json-parse.js": 3,
+        "tests/declarative-components.test.js": 2
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 441,
+      "user_lines_removed": 53,
+      "agent_lines_added": 682,
+      "agent_lines_removed": 95,
+      "user_added_per_file": {
+        ".claude/settings.json": 84,
+        ".codex/hooks.json": 88,
+        "docs/rules/no-unasserted-return.md": 1,
+        "docs/rules/require-assertions.md": 6,
+        "docs/rules/require-contract-assertions.md": 3,
+        "rules/no-unvalidated-json-parse.js": 41,
+        "rules/require-compound-component-api.js": 104,
+        "tests/probe.tmp.test.js": 93,
+        "tests/probe1.test.js": 21
+      },
+      "user_removed_per_file": {
+        "docs/rules/no-unasserted-return.md": 1,
+        "docs/rules/require-assertions.md": 1,
+        "docs/rules/require-contract-assertions.md": 1,
+        "rules/no-unvalidated-json-parse.js": 3,
+        "rules/require-compound-component-api.js": 31,
+        "tests/probe1.test.js": 16
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 728,
+      "user_lines_removed": 64,
+      "agent_lines_added": 1059,
+      "agent_lines_removed": 145,
+      "user_added_per_file": {
+        ".claude/settings.json": 84,
+        ".codex/hooks.json": 88,
+        "docs/rules/effect-error-handling.md": 4,
+        "docs/rules/no-barrel-files.md": 4,
+        "docs/rules/no-barrel-imports.md": 2,
+        "docs/rules/no-unvalidated-json-parse.md": 2,
+        "rules/design-system-helpers.js": 56,
+        "rules/no-raw-design-values.js": 75,
+        "rules/no-root-owned-compound-parts.js": 79,
+        "tests/effect-error-handling.test.js": 67,
+        "tests/no-barrel-files.test.js": 46,
+        "tests/no-barrel-imports.test.js": 35,
+        "tests/no-root-owned-compound-parts.test.js": 43,
+        "tests/no-unvalidated-json-parse.test.js": 50,
+        "tests/probe.tmp.test.js": 93
+      },
+      "user_removed_per_file": {
+        "docs/rules/effect-error-handling.md": 1,
+        "docs/rules/no-unvalidated-json-parse.md": 2,
+        "rules/no-raw-design-values.js": 48,
+        "rules/no-root-owned-compound-parts.js": 13
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 391,
+      "user_lines_removed": 77,
+      "agent_lines_added": 1661,
+      "agent_lines_removed": 215,
+      "user_added_per_file": {
+        ".claude/settings.json": 84,
+        ".codex/hooks.json": 88,
+        "docs/rules/declarative-components.md": 6,
+        "docs/rules/no-design-identity-overrides.md": 1,
+        "docs/rules/no-raw-design-properties.md": 2,
+        "docs/rules/no-raw-design-values.md": 2,
+        "docs/rules/no-root-owned-compound-parts.md": 5,
+        "docs/rules/prefer-design-system-components.md": 2,
+        "docs/rules/require-compound-component-api.md": 5,
+        "docs/rules/require-consumer-owned-compound-usage.md": 2,
+        "rules/declarative-components.js": 11,
+        "rules/no-design-identity-overrides.js": 6,
+        "rules/no-raw-design-properties.js": 21,
+        "rules/prefer-design-system-components.js": 21,
+        "tests/no-design-identity-overrides.test.js": 8,
+        "tests/no-raw-design-properties.test.js": 19,
+        "tests/prefer-design-system-components.test.js": 15,
+        "tests/probe.tmp.test.js": 93
+      },
+      "user_removed_per_file": {
+        "docs/rules/declarative-components.md": 2,
+        "docs/rules/no-design-identity-overrides.md": 1,
+        "docs/rules/no-root-owned-compound-parts.md": 1,
+        "docs/rules/require-compound-component-api.md": 1,
+        "rules/declarative-components.js": 69,
+        "rules/no-design-identity-overrides.js": 1,
+        "rules/prefer-design-system-components.js": 2
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 172,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2069,
+      "agent_lines_removed": 328,
+      "user_added_per_file": {
+        ".claude/settings.json": 84,
+        ".codex/hooks.json": 88
+      }
+    }
+  ]
+}
