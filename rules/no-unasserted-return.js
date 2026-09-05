@@ -1,11 +1,83 @@
+import { minimatch } from "minimatch";
+
 import {
   functionName,
   isFunctionExempt,
 } from "./require-assertions.js";
 import {
   assertionNameSet,
+  findVariable,
   isAssertionCall,
 } from "./assertion-helpers.js";
+import {
+  memberWrittenBetween,
+  variableWrittenBetween,
+} from "./assertion-mutation-helpers.js";
+
+const controlFlowTypes = new Set([
+  "CatchClause",
+  "ConditionalExpression",
+  "DoWhileStatement",
+  "ForInStatement",
+  "ForOfStatement",
+  "ForStatement",
+  "IfStatement",
+  "LogicalExpression",
+  "SwitchCase",
+  "SwitchStatement",
+  "TryStatement",
+  "WhileStatement",
+]);
+
+const isAncestor = (ancestor, node) => {
+  let current = node;
+  while (current) {
+    if (current === ancestor) return true;
+    current = current.parent;
+  }
+  return false;
+};
+
+const statementChild = (container, node) => {
+  let current = node;
+  while (current.parent && current.parent !== container) {
+    current = current.parent;
+  }
+  return current.parent === container ? current : null;
+};
+
+const assertionDominatesReturn = (call, returnNode) => {
+  let container = call.parent;
+  while (container && container.type !== "BlockStatement") {
+    container = container.parent;
+  }
+  if (!container || !isAncestor(container, returnNode)) return false;
+  const assertionStatement = statementChild(container, call);
+  const returnStatement = statementChild(container, returnNode);
+  if (!assertionStatement || !returnStatement) return false;
+  if (
+    container.body.indexOf(assertionStatement) >=
+    container.body.indexOf(returnStatement)
+  ) {
+    return false;
+  }
+  let current = call.parent;
+  while (current && current !== container) {
+    if (controlFlowTypes.has(current.type) && !isAncestor(current, returnNode)) {
+      return false;
+    }
+    current = current.parent;
+  }
+  return true;
+};
+
+const assertionReferencesVariable = (call, variable) => {
+  const condition = call.arguments[0];
+  if (!condition || condition.type === "SpreadElement") return false;
+  return variable.references.some(({ identifier }) =>
+    isAncestor(condition, identifier),
+  );
+};
 
 const displayCalleeName = (node) => {
   if (node.type === "Identifier") return node.name;
@@ -15,6 +87,63 @@ const displayCalleeName = (node) => {
   if (!objectName || node.property.type !== "Identifier") return undefined;
   return `${objectName}.${node.property.name}`;
 };
+
+const calleePatterns = (node) => {
+  const name = displayCalleeName(node);
+  if (node.type !== "MemberExpression" || node.computed) {
+    return name ? [name] : [];
+  }
+  const property = node.property.type === "Identifier" ? node.property.name : undefined;
+  return [...new Set([name, property && `*.${property}`].filter(Boolean))];
+};
+
+const importIdentity = (callee, sourceCode) => {
+  if (callee.type === "Identifier") {
+    const definition = findVariable(sourceCode, callee)?.defs[0];
+    if (definition?.type !== "ImportBinding") return null;
+    const imported = definition.node.type === "ImportSpecifier"
+      ? definition.node.imported.name ?? definition.node.imported.value
+      : definition.node.type === "ImportDefaultSpecifier"
+        ? "default"
+        : null;
+    return imported
+      ? { exported: imported, module: definition.parent.source.value }
+      : null;
+  }
+  if (
+    callee.type !== "MemberExpression" ||
+    callee.computed ||
+    callee.object.type !== "Identifier" ||
+    callee.property.type !== "Identifier"
+  ) {
+    return null;
+  }
+  const definition = findVariable(sourceCode, callee.object)?.defs[0];
+  if (
+    definition?.type !== "ImportBinding" ||
+    definition.node.type !== "ImportNamespaceSpecifier"
+  ) {
+    return null;
+  }
+  return {
+    exported: callee.property.name,
+    module: definition.parent.source.value,
+  };
+};
+
+const callMatchesTrustedImport = (call, trustedImports, sourceCode) => {
+  const identity = importIdentity(call.callee, sourceCode);
+  return identity !== null && trustedImports.some((entry) =>
+    minimatch(identity.module, entry.module) &&
+    entry.exports.some((exported) => minimatch(identity.exported, exported)),
+  );
+};
+
+const callIsAllowed = (call, patterns, trustedImports, sourceCode) =>
+  callMatchesTrustedImport(call, trustedImports, sourceCode) ||
+  calleePatterns(call.callee).some((name) =>
+    patterns.some((pattern) => minimatch(name, pattern)),
+  );
 
 // `return f(...)` and `return await f(...)` are the shapes that smuggle an
 // unexamined value out of a function. A returned identifier, literal, or
@@ -44,12 +173,92 @@ const returnedCalls = (node) => {
   return [];
 };
 
+const returnedLeaves = (node) => {
+  if (!node) return [];
+  if (
+    [
+      "AwaitExpression",
+      "ChainExpression",
+      "TSAsExpression",
+      "TSNonNullExpression",
+      "TSSatisfiesExpression",
+      "TSTypeAssertion",
+    ].includes(node.type)
+  ) {
+    return returnedLeaves(node.expression ?? node.argument);
+  }
+  if (node.type === "ConditionalExpression") {
+    return [
+      ...returnedLeaves(node.consequent),
+      ...returnedLeaves(node.alternate),
+    ];
+  }
+  if (node.type === "LogicalExpression") {
+    return [...returnedLeaves(node.left), ...returnedLeaves(node.right)];
+  }
+  return [node];
+};
+
 const reportUnassertedReturn = (context, node, call) =>
   context.report({
     node,
     messageId: "unassertedReturn",
     data: { callee: displayCalleeName(call.callee) ?? "the call" },
   });
+
+const returnedLocalCall = (node, sourceCode) => {
+  if (node?.type !== "Identifier") return null;
+  const variable = findVariable(sourceCode, node);
+  const definition = variable?.defs.find(
+    ({ node: definitionNode }) =>
+      definitionNode.type === "VariableDeclarator" && definitionNode.init,
+  )?.node;
+  if (!definition?.init) return null;
+  const calls = returnedCalls(definition.init);
+  return calls.length > 0 ? { calls, definition, variable } : null;
+};
+
+const localReturnIsAsserted = (current, node, local) =>
+  current.assertions.some(
+    (call) =>
+      call.range[0] > local.definition.range[0] &&
+      assertionDominatesReturn(call, node) &&
+      assertionReferencesVariable(call, local.variable) &&
+      !variableWrittenBetween(local.variable, call, node) &&
+      !memberWrittenBetween(local.variable, null, call, node),
+  );
+
+const reportReturns = (context, current, options, sourceCode) => {
+  const allowedReturnCalls = options.allowedReturnCalls ?? [];
+  const trustedReturnImports = options.trustedReturnImports ?? [];
+  for (const { node, calls } of current.returns) {
+    for (const call of calls) {
+      if (!callIsAllowed(
+        call,
+        allowedReturnCalls,
+        trustedReturnImports,
+        sourceCode,
+      )) {
+        reportUnassertedReturn(context, node, call);
+      }
+    }
+  }
+  for (const { node, local } of current.localReturns) {
+    for (const call of local.calls) {
+      if (
+        !callIsAllowed(
+          call,
+          allowedReturnCalls,
+          trustedReturnImports,
+          sourceCode,
+        ) &&
+        !localReturnIsAsserted(current, node, local)
+      ) {
+        reportUnassertedReturn(context, node, call);
+      }
+    }
+  }
+};
 
 /** Requires direct call results to be bound, asserted, and then returned. */
 export default {
@@ -69,6 +278,27 @@ export default {
         type: "object",
         additionalProperties: false,
         properties: {
+          allowedReturnCalls: {
+            type: "array",
+            items: { type: "string", minLength: 1 },
+          },
+          trustedReturnImports: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["module", "exports"],
+              properties: {
+                module: { type: "string", minLength: 1 },
+                exports: {
+                  type: "array",
+                  minItems: 1,
+                  uniqueItems: true,
+                  items: { type: "string", minLength: 1 },
+                },
+              },
+            },
+          },
           assertionNames: {
             type: "array",
             minItems: 1,
@@ -110,9 +340,7 @@ export default {
         options.ignoreAssertionHelpers &&
         assertionNames.has(functionName(current.node))
       ) return;
-      for (const { node, calls } of current.returns) {
-        for (const call of calls) reportUnassertedReturn(context, node, call);
-      }
+      reportReturns(context, current, options, sourceCode);
     };
 
     return {
@@ -124,6 +352,8 @@ export default {
                 (call) => !isAssertionCall(call, assertionNames, sourceCode),
               );
         functionStack.push({
+          assertions: [],
+          localReturns: [],
           node,
           returns: calls.length > 0 ? [{ calls, node: node.body }] : [],
         });
@@ -136,6 +366,19 @@ export default {
           (call) => !isAssertionCall(call, assertionNames, sourceCode),
         );
         if (calls.length > 0) current.returns.push({ calls, node });
+        for (const leaf of returnedLeaves(node.argument)) {
+          const local = returnedLocalCall(leaf, sourceCode);
+          if (local) current.localReturns.push({ local, node });
+        }
+      },
+      CallExpression(node) {
+        const current = functionStack.at(-1);
+        if (
+          current &&
+          isAssertionCall(node, assertionNames, sourceCode)
+        ) {
+          current.assertions.push(node);
+        }
       },
     };
   },

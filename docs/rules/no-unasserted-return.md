@@ -13,7 +13,7 @@ async function loadProfile(id: string): Promise<Profile> {
 }
 ```
 
-`return f(...)` and `return await f(...)` smuggle a value out of a function without the function ever looking at it. Binding the result to a local first creates the place where its shape can be asserted — the same discipline `require-assertions` teaches, applied to the one statement that most often escapes it. A returned identifier, literal, or object built in place is not reported: those already passed through the function's own hands.
+`return f(...)` and `return await f(...)` smuggle a value out of a function without the function ever looking at it. The rule also follows a returned local binding back to a call initializer, so `const result = f(); return result` remains invalid until an assertion references `result` between initialization and return. Literals and objects built in place are not reported.
 
 A precondition or an assertion covering another return does not prove the returned call's result. This is therefore still invalid:
 
@@ -26,7 +26,7 @@ function totalFor(entries: ReadonlyArray<Entry>, unit: string): number {
 
 ## Options
 
-Assertion calls are recognized structurally, as with `require-assertions`: a call to an import from an assertion module (`assert`, `node:assert`, `invariant`, and similar, including namespace/default imports, member access, and one level of local aliasing), or a call to a same-file function whose return type is a TypeScript `asserts` predicate, is never treated as an unasserted returned value. `assertionNames` (default `assert`, `assertDefined`, `nodeAssert`, `nodeAssert.ok`) remains a textual fallback for project-specific helpers that use neither pattern.
+Assertion calls are recognized structurally, as with `require-assertions`: a call to an import from an assertion module (`assert`, `node:assert`, `invariant`, and similar, including namespace/default imports, member access, and one level of local aliasing), or a call to a same-file function whose return type is a TypeScript `asserts` predicate, is never treated as an unasserted returned value. `assertionNames` (default `assert`, `assertDefined`, `assertWorkletInvariant`, `nodeAssert`, `nodeAssert.ok`) remains a textual fallback for project-specific helpers that use neither pattern. The worklet helper is a built-in convention because worklet serialization cannot carry an imported Node assertion or TypeScript `asserts` predicate.
 
 `ignoreDelegates` (default `true`) exempts a function whose whole body is the one return — an expression-bodied arrow, or a block with a single statement:
 
@@ -38,9 +38,32 @@ A delegate computes nothing of its own, so the named callee carries the invarian
 
 Conditional and logical returns are inspected path by path, so both calls in `return ready ? loadFresh() : cached || loadFallback()` are reported.
 
+`allowedReturnCalls` accepts trusted callee-name minimatch patterns. This is an explicitly unsafe naming escape hatch, not type evidence: `*.some` can also match a project method named `some`. Prefer `trustedReturnImports` for helpers with a stable module/export identity; it follows named import aliases and namespace imports, and rejects locally shadowed names. Use receiver-specific textual entries such as `assignments.some` only when no import identity exists. Unlisted calls remain strict.
+
+```js
+{
+  "code-architecture/no-unasserted-return": ["error", {
+    allowedReturnCalls: ["assignments.some", "routeName.endsWith"],
+  }],
+}
+```
+
+```js
+{
+  "code-architecture/no-unasserted-return": ["error", {
+    trustedReturnImports: [{
+      module: "@app/predicates",
+      exports: ["isEligible"],
+    }],
+  }],
+}
+```
+
 The rule shares production eligibility options with `require-assertions`: `minimumStatements`, `ignoreDirectCallbacks`, `directCallbackMaxStatements`, `ignoreJSXCallbacks`, `ignoreJSXComponents`, `ignoreNoInputClosures`, `ignoreReactHooks`, `ignoreTrivialConstructors`, and `ignoreDelegates`. `ignoreAssertionHelpers` excludes recognized assertion-helper implementations.
 
 Assertions inside a nested function count only toward that nested function, matching `require-assertions`' scoping.
+
+The local analysis is intentionally bounded to one variable declarator in the same function. It follows identifiers used as conditional or logical return leaves, but not assignments, destructuring, aliases, or values passed through another function. The assertion must dominate the return, and neither the binding nor one of its members may be written afterward.
 
 ## Production-derived example
 

@@ -45,7 +45,7 @@ A null or undefined check does count for an optional or explicitly nullable para
 
 ## Returns
 
-Every nontrivial return path must have a preceding semantic assertion that dominates that return. Assertions in conditional branches do not cover returns outside those branches. Mutating the returned binding after its postcondition invalidates that postcondition. Vacuous conditions such as `result === result` never count.
+Every nontrivial return path must have a preceding semantic assertion that dominates that return. Assertions in conditional branches do not cover returns outside those branches. Direct reassignment or property writes to the returned binding after its postcondition invalidate that postcondition. Vacuous conditions such as `result === result` never count.
 
 Prefer naming computed results:
 
@@ -56,6 +56,8 @@ return result;
 ```
 
 Direct computed returns are reported because there is no stable returned binding on which to express a postcondition. Bare `return`, literals, static templates, JSX, and newly created function values are treated as statically evident. Generator return/yield contracts are outside this syntax-only rule.
+
+The mutation analysis is intentionally bounded. It detects direct writes to the returned member, its owning object, and nested paths rooted at that binding. It does not attempt interprocedural alias analysis or assume that every call mutates its arguments; callers that need those guarantees should assert again after a potentially mutating call.
 
 ## Options
 

@@ -4,6 +4,11 @@ import {
   isAssertionCall,
 } from "./assertion-helpers.js";
 import {
+  memberWrittenBetween,
+  staticMemberPath,
+  variableWrittenBetween,
+} from "./assertion-mutation-helpers.js";
+import {
   functionName,
   isFunctionExempt,
 } from "./require-assertions.js";
@@ -301,14 +306,6 @@ const assertionDominatesReturn = (call, returnNode) => {
   return true;
 };
 
-const variableWrittenBetween = (variable, start, end) =>
-  variable?.references.some(
-    (reference) =>
-      reference.isWrite() &&
-      reference.identifier.range[0] > start.range[0] &&
-      reference.identifier.range[0] < end.range[0],
-  ) ?? false;
-
 const unwrapReturnedExpression = (expression) => {
   let current = expression;
   while (
@@ -322,7 +319,9 @@ const unwrapReturnedExpression = (expression) => {
       "TSTypeAssertion",
     ].includes(current.type)
   ) {
-    current = current.expression;
+    current = current.type === "AwaitExpression"
+      ? current.argument
+      : current.expression;
   }
   return current;
 };
@@ -336,14 +335,6 @@ const isStaticReturn = (expression) =>
   ) ||
   ["JSXElement", "JSXFragment"].includes(expression.type) ||
   (expression.type === "Identifier" && expression.name === "undefined");
-
-const staticMemberPath = (node) => {
-  if (node.type === "Identifier") return node.name;
-  if (node.type !== "MemberExpression" || node.computed) return null;
-  const object = staticMemberPath(node.object);
-  if (!object || node.property.type !== "Identifier") return null;
-  return `${object}.${node.property.name}`;
-};
 
 const assertionReferencesMember = (condition, returned, sourceCode) => {
   const path = staticMemberPath(returned);
@@ -383,6 +374,14 @@ const returnTarget = (expression, sourceCode, returnType) => {
 
 const returnIsAsserted = (state, returned, returnNode, sourceCode, options) => {
   const target = returnTarget(returned, sourceCode, state.returnType);
+  const returnedPath = staticMemberPath(returned);
+  let rootIdentifier = returned;
+  while (rootIdentifier.type === "MemberExpression") {
+    rootIdentifier = rootIdentifier.object;
+  }
+  const returnedVariable = rootIdentifier.type === "Identifier"
+    ? findVariable(sourceCode, rootIdentifier)
+    : null;
   return state.assertions.some((call) => {
     if (!assertionDominatesReturn(call, returnNode)) return false;
     const condition = assertionCondition(call);
@@ -392,6 +391,17 @@ const returnIsAsserted = (state, returned, returnNode, sourceCode, options) => {
       : assertionReferencesMember(condition, returned, sourceCode);
     if (!referencesReturn) return false;
     if (target && variableWrittenBetween(target.variable, call, returnNode)) {
+      return false;
+    }
+    if (
+      returnedVariable &&
+      memberWrittenBetween(
+        returnedVariable,
+        returned.type === "MemberExpression" ? returnedPath : null,
+        call,
+        returnNode,
+      )
+    ) {
       return false;
     }
     if (target && isVacuousExpression(condition, target, sourceCode)) {

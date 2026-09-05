@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.6.0-alpha.11
+
+- Clarify that assertion density is a heuristic, preserve intentional operational-error contracts, and document meaningful relationship assertions.
+- Make `no-unasserted-return` follow local bindings inside conditional and logical return leaves, including assertion invalidation.
+- Add `trustedReturnImports` for alias- and shadow-safe module/export identity matching while retaining `allowedReturnCalls` as an explicitly unsafe textual escape hatch.
+
+## 0.6.0-alpha.10
+
+- Make `no-unasserted-return` check every call contributing to a returned local binding and reject postconditions invalidated by member writes using shared mutation analysis.
+- Make `require-interactive-component-contract` treat unknown JSX spreads conservatively and honor attribute override order instead of inferring accessibility and disabled behavior.
+- Document `allowedReturnCalls` as an explicit trusted-name exception and recommend receiver-specific patterns.
+
+## 0.6.0-alpha.9
+
+- Let `no-unasserted-return` accept narrow `allowedReturnCalls` minimatch patterns for return contracts that are already guaranteed by their API, such as standard boolean predicates, while keeping every unlisted call strict.
+
+## 0.6.0-alpha.8
+
+- Let `require-interactive-component-contract` trust configured primitives for press feedback only, and ignore noninteractive return paths during automatic detection while keeping explicitly named component owners strict on every JSX path.
+
+## 0.6.0-alpha.7
+
+- Make `require-contract-assertions` inspect `return await` and invalidate postconditions after direct writes to returned members or their owning object.
+- Make `no-unasserted-return` follow a returned local binding back to its call initializer and require a dominating assertion of that binding.
+- Make `require-interactive-component-contract` inspect the actual interactive element on every return path, require actual disabled wiring for every accepted unavailable prop, reject static style as press feedback, and support configured primitives nested beneath single-child providers.
+
+## 0.6.0-alpha.6
+
+- Let `require-interactive-component-contract` trust configured design-system roots through `contractComponents`. Feature wrappers inherit role, accessibility-state, and feedback ownership from those roots while still having to expose and forward their own disabled behavior and configurable content.
+
+## 0.6.0-alpha.5
+
+- Recognize `assertWorkletInvariant` as a built-in assertion helper across the assertion rules. This gives serialized Reanimated worklets an explicit invariant convention without requiring every consumer to repeat an `assertionNames` exception.
+
 ## 0.6.0-alpha.4
 
 - Detect assertions structurally in `require-assertions`, `require-contract-assertions`, and `no-unasserted-return`: any call that resolves to an import from an assertion module (`assert`, `node:assert`, `tiny-invariant`, or any path ending in `assert`/`asserts`/`assertions`/`invariant`), a one-level local alias of it, or a same-file function with a TypeScript `asserts` predicate counts without configuration. `assertionNames` remains a textual fallback.

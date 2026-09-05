@@ -1,6 +1,8 @@
 # require-assertions
 
-Requires a minimum number of runtime assertions per function. The TigerStyle preset uses two.
+Requires a minimum number of runtime assertions per eligible function. The TigerStyle preset uses two.
+
+This numerical threshold is a heuristic, not a proof of contract completeness. TigerStyle says assertion density should **average a minimum of two assertions per function** across the codebase; this plugin's per-function minimum is a deliberately stricter, configurable adaptation. Meeting it does not establish contract completeness or correctness. Counted assertions are prompts to record meaningful arguments, returns, and invariants, and they never replace tests or error handling.
 
 This is the broad density layer. Keep it enabled across both full-contract and lighter return-policy scopes; see [Assertion rule scoping](../assertion-scoping.md).
 
@@ -11,7 +13,7 @@ A call counts as an assertion structurally, without any configuration:
 - it resolves (through ESLint scope analysis, including one level of local aliasing, e.g. `const a = nodeAssert;`) to an import from an assertion module — `assert`, `node:assert`, `node:assert/strict`, `assert/strict`, `tiny-invariant`, `invariant`, or any specifier whose last path segment is `assert`, `asserts`, `assertions`, or `invariant`. Namespace and default imports, and any member accessed off them (`a.ok(x)`, `nodeAssert.strictEqual(x, y)`), all qualify — the local name and the member name do not matter;
 - it resolves to a same-file function (declaration, `const` arrow, or `TSDeclareFunction` overload) whose return type is a TypeScript `asserts` predicate (`function assertPositive(x): asserts x is number { ... }`).
 
-`assertionNames` (default `assert`, `assertDefined`, `nodeAssert`, `nodeAssert.ok`) is a purely textual fallback on top of that: it matches the printed callee name exactly, regardless of where the callee came from, for project-specific helpers that use neither pattern above. Configure `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
+`assertionNames` (default `assert`, `assertDefined`, `assertWorkletInvariant`, `nodeAssert`, `nodeAssert.ok`) is a purely textual fallback on top of that: it matches the printed callee name exactly, regardless of where the callee came from, for project-specific helpers that use neither pattern above. `assertWorkletInvariant` covers Reanimated worklets, where an ordinary imported Node assertion cannot execute and a TypeScript `asserts` predicate is not preserved across worklet serialization. Configure `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
 
 `ignoreDelegates` excludes functions whose entire body forwards to one call, including awaited calls. Use it only when the called boundary owns the contract; it is off by default, and domain adapters with meaningful validation should remain checked.
 
@@ -174,16 +176,55 @@ Detection is purely structural and stops at the nearest enclosing function. XSta
 
 The cheapest honest assertion is usually about **shape**: the property of a value that must hold for the next line to make sense, checkable without knowing the value itself. Reach for these before concluding a function has nothing to assert:
 
-- a module singleton the function calls into - `assert(typeof router.back === "function", "...")`;
 - an id or token whose emptiness would make the call downstream meaningless - `assert(token.length > 2, "...")`;
 - a state field used arithmetically or as a flag - `assert(Number.isFinite(state.consecutiveFailures) && state.consecutiveFailures >= 0, "...")`, `assert(typeof state.started === "boolean", "...")`;
 - callbacks a context object promises - `assert(typeof ctx.setError === "function" && typeof ctx.setIntent === "function", "...")`.
+- relationships the algorithm depends on - `assert(start <= end, "range bounds must be ordered")`, `assert(record.ownerId === requestedOwnerId, "records must remain owner-scoped")`.
 
 A thin delegate whose parameter has a checkable shape asserts that shape even when the named callee owns the deeper invariants - the delegate is the last place the value is seen before it crosses into code that trusts it.
 
-## Tolerant readers
+## Expected failures and internal invariants
 
-Do not reach for a config exemption to keep a function tolerant. Validators generally convert their `null`-returning paths into assertions, together with an audit of the callers that relied on the `null`. The exception is a reader of legacy on-device data, where the tolerant contract is the point: those keep it, one function at a time, with a `// eslint-disable-next-line code-architecture/require-assertions -- <reason naming the contract>` on that function, never a config exemption.
+Preserve intentional error behavior. Invalid user input, missing resources, and malformed external data are expected operational failures and may legitimately return `null`, a result value, or a typed error. Do not replace those contracts with assertions merely to satisfy density. Assertions belong on violated internal invariants: states the implementation believes cannot occur if the program is correct.
+
+A tolerant parser may keep `null` as part of its public contract:
+
+```ts
+function parseOptionalAge(input: unknown): number | null {
+  if (typeof input !== "string") return null;
+  const age = Number(input);
+  if (!Number.isInteger(age) || age < 0) return null;
+  return age;
+}
+```
+
+A boundary may make expected failure explicit as data:
+
+```ts
+type ParseResult =
+  | { readonly ok: true; readonly value: number }
+  | { readonly ok: false; readonly reason: "invalid-age" };
+
+function parseAge(input: unknown): ParseResult {
+  if (typeof input !== "string") return { ok: false, reason: "invalid-age" };
+  const value = Number(input);
+  if (!Number.isInteger(value)) return { ok: false, reason: "invalid-age" };
+  return { ok: true, value };
+}
+```
+
+An internal range constructor, by contrast, should fail fast when its own ordering invariant is violated:
+
+```ts
+function createRange(start: number, end: number): Range {
+  assert(start <= end, "range bounds must be ordered");
+  const range = { start, end };
+  assert(range.end - range.start >= 0, "range width must be non-negative");
+  return range;
+}
+```
+
+If a tolerant function is eligible for a project-wide minimum but has no honest internal invariant, use a narrow, reasoned suppression or refine the configured scope. Do not change its failure semantics or add ceremonial checks.
 
 Assertions inside a nested function count only toward that nested function, unless `creditWrapperClosures` applies to the wrapper around it. Assert inputs, return values, invariants, and both positive and negative space; do not add meaningless assertions to satisfy the count.
 

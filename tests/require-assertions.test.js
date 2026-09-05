@@ -29,6 +29,25 @@ const identity = (value) => value;`,
   expect(messages).toHaveLength(0);
 });
 
+test("require-assertions counts the default worklet invariant helper", () => {
+  const messages = lintRule({
+    code: `function assertWorkletInvariant({ condition, message }) {
+  "worklet";
+  if (!condition) throw new Error(message);
+}
+function animate(size, duration) {
+  assertWorkletInvariant({ condition: size > 0, message: "size" });
+  assertWorkletInvariant({ condition: duration > 0, message: "duration" });
+  return size * duration;
+}`,
+    options: [{ minimum: 2, minimumStatements: 3 }],
+    rule,
+    ruleName: "require-assertions",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
 test("require-assertions keeps parameterized XState actions strict", () => {
   const messages = lintRule({
     code: `createMachine({

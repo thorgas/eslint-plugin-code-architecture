@@ -365,3 +365,34 @@ test("require-contract-assertions structurally recognizes a locally declared ass
   const normalizeMessages = messages.filter((message) => message.line >= 5);
   expect(normalizeMessages).toHaveLength(0);
 });
+
+test("require-contract-assertions checks awaited returns like direct returns", () => {
+  const direct = lint(`
+    async function loadProfile() {
+      return load();
+    }
+  `);
+  const awaited = lint(`
+    async function loadProfile() {
+      return await load();
+    }
+  `);
+
+  expect(awaited.map(({ messageId }) => messageId)).toEqual(
+    direct.map(({ messageId }) => messageId),
+  );
+  expect(awaited.map(({ messageId }) => messageId)).toContain("unassertedReturn");
+});
+
+test("require-contract-assertions invalidates postconditions after direct member writes", () => {
+  const messages = lint(`
+    function example() {
+      const result = load();
+      assert(result.value > 0);
+      result.value = -1;
+      return result.value;
+    }
+  `);
+
+  expect(messages.map(({ messageId }) => messageId)).toContain("unassertedReturn");
+});
