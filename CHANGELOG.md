@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0-alpha.11
+
+- Clarify that assertion density is a heuristic, preserve intentional operational-error contracts, and document meaningful relationship assertions.
+- Make `no-unasserted-return` follow local bindings inside conditional and logical return leaves, including assertion invalidation.
+- Add `trustedReturnImports` for alias- and shadow-safe module/export identity matching while retaining `allowedReturnCalls` as an explicitly unsafe textual escape hatch.
+
 ## 0.6.0-alpha.10
 
 - Make `no-unasserted-return` check every call contributing to a returned local binding and reject postconditions invalidated by member writes using shared mutation analysis.

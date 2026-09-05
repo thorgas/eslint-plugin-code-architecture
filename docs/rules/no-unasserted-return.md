@@ -38,7 +38,7 @@ A delegate computes nothing of its own, so the named callee carries the invarian
 
 Conditional and logical returns are inspected path by path, so both calls in `return ready ? loadFresh() : cached || loadFallback()` are reported.
 
-`allowedReturnCalls` accepts trusted callee-name minimatch patterns. This is a naming exception, not type evidence: `*.some` can also match a project method named `some`. Prefer receiver-specific entries such as `assignments.some`; unlisted calls remain strict. When a returned local is initialized by a conditional or logical expression, every contributing call is checked independently, so an allowed branch cannot hide another call.
+`allowedReturnCalls` accepts trusted callee-name minimatch patterns. This is an explicitly unsafe naming escape hatch, not type evidence: `*.some` can also match a project method named `some`. Prefer `trustedReturnImports` for helpers with a stable module/export identity; it follows named import aliases and namespace imports, and rejects locally shadowed names. Use receiver-specific textual entries such as `assignments.some` only when no import identity exists. Unlisted calls remain strict.
 
 ```js
 {
@@ -48,11 +48,22 @@ Conditional and logical returns are inspected path by path, so both calls in `re
 }
 ```
 
+```js
+{
+  "code-architecture/no-unasserted-return": ["error", {
+    trustedReturnImports: [{
+      module: "@app/predicates",
+      exports: ["isEligible"],
+    }],
+  }],
+}
+```
+
 The rule shares production eligibility options with `require-assertions`: `minimumStatements`, `ignoreDirectCallbacks`, `directCallbackMaxStatements`, `ignoreJSXCallbacks`, `ignoreJSXComponents`, `ignoreNoInputClosures`, `ignoreReactHooks`, `ignoreTrivialConstructors`, and `ignoreDelegates`. `ignoreAssertionHelpers` excludes recognized assertion-helper implementations.
 
 Assertions inside a nested function count only toward that nested function, matching `require-assertions`' scoping.
 
-The local analysis is intentionally bounded to one variable declarator in the same function. It does not follow assignments, destructuring, aliases, or values passed through another function. The assertion must dominate the return, and neither the binding nor one of its members may be written afterward.
+The local analysis is intentionally bounded to one variable declarator in the same function. It follows identifiers used as conditional or logical return leaves, but not assignments, destructuring, aliases, or values passed through another function. The assertion must dominate the return, and neither the binding nor one of its members may be written afterward.
 
 ## Production-derived example
 
