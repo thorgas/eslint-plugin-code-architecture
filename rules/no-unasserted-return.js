@@ -4,8 +4,82 @@ import {
 } from "./require-assertions.js";
 import {
   assertionNameSet,
+  findVariable,
   isAssertionCall,
 } from "./assertion-helpers.js";
+
+const controlFlowTypes = new Set([
+  "CatchClause",
+  "ConditionalExpression",
+  "DoWhileStatement",
+  "ForInStatement",
+  "ForOfStatement",
+  "ForStatement",
+  "IfStatement",
+  "LogicalExpression",
+  "SwitchCase",
+  "SwitchStatement",
+  "TryStatement",
+  "WhileStatement",
+]);
+
+const isAncestor = (ancestor, node) => {
+  let current = node;
+  while (current) {
+    if (current === ancestor) return true;
+    current = current.parent;
+  }
+  return false;
+};
+
+const statementChild = (container, node) => {
+  let current = node;
+  while (current.parent && current.parent !== container) {
+    current = current.parent;
+  }
+  return current.parent === container ? current : null;
+};
+
+const assertionDominatesReturn = (call, returnNode) => {
+  let container = call.parent;
+  while (container && container.type !== "BlockStatement") {
+    container = container.parent;
+  }
+  if (!container || !isAncestor(container, returnNode)) return false;
+  const assertionStatement = statementChild(container, call);
+  const returnStatement = statementChild(container, returnNode);
+  if (!assertionStatement || !returnStatement) return false;
+  if (
+    container.body.indexOf(assertionStatement) >=
+    container.body.indexOf(returnStatement)
+  ) {
+    return false;
+  }
+  let current = call.parent;
+  while (current && current !== container) {
+    if (controlFlowTypes.has(current.type) && !isAncestor(current, returnNode)) {
+      return false;
+    }
+    current = current.parent;
+  }
+  return true;
+};
+
+const assertionReferencesVariable = (call, variable) => {
+  const condition = call.arguments[0];
+  if (!condition || condition.type === "SpreadElement") return false;
+  return variable.references.some(({ identifier }) =>
+    isAncestor(condition, identifier),
+  );
+};
+
+const variableWrittenBetween = (variable, start, end) =>
+  variable.references.some(
+    (reference) =>
+      reference.isWrite() &&
+      reference.identifier.range[0] > start.range[0] &&
+      reference.identifier.range[0] < end.range[0],
+  );
 
 const displayCalleeName = (node) => {
   if (node.type === "Identifier") return node.name;
@@ -50,6 +124,38 @@ const reportUnassertedReturn = (context, node, call) =>
     messageId: "unassertedReturn",
     data: { callee: displayCalleeName(call.callee) ?? "the call" },
   });
+
+const returnedLocalCall = (node, sourceCode) => {
+  if (node?.type !== "Identifier") return null;
+  const variable = findVariable(sourceCode, node);
+  const definition = variable?.defs.find(
+    ({ node: definitionNode }) =>
+      definitionNode.type === "VariableDeclarator" && definitionNode.init,
+  )?.node;
+  if (!definition?.init) return null;
+  const calls = returnedCalls(definition.init);
+  return calls.length > 0 ? { call: calls[0], definition, variable } : null;
+};
+
+const localReturnIsAsserted = (current, node, local) =>
+  current.assertions.some(
+    (call) =>
+      call.range[0] > local.definition.range[0] &&
+      assertionDominatesReturn(call, node) &&
+      assertionReferencesVariable(call, local.variable) &&
+      !variableWrittenBetween(local.variable, call, node),
+  );
+
+const reportReturns = (context, current) => {
+  for (const { node, calls } of current.returns) {
+    for (const call of calls) reportUnassertedReturn(context, node, call);
+  }
+  for (const { node, local } of current.localReturns) {
+    if (!localReturnIsAsserted(current, node, local)) {
+      reportUnassertedReturn(context, node, local.call);
+    }
+  }
+};
 
 /** Requires direct call results to be bound, asserted, and then returned. */
 export default {
@@ -110,9 +216,7 @@ export default {
         options.ignoreAssertionHelpers &&
         assertionNames.has(functionName(current.node))
       ) return;
-      for (const { node, calls } of current.returns) {
-        for (const call of calls) reportUnassertedReturn(context, node, call);
-      }
+      reportReturns(context, current);
     };
 
     return {
@@ -124,6 +228,8 @@ export default {
                 (call) => !isAssertionCall(call, assertionNames, sourceCode),
               );
         functionStack.push({
+          assertions: [],
+          localReturns: [],
           node,
           returns: calls.length > 0 ? [{ calls, node: node.body }] : [],
         });
@@ -136,6 +242,17 @@ export default {
           (call) => !isAssertionCall(call, assertionNames, sourceCode),
         );
         if (calls.length > 0) current.returns.push({ calls, node });
+        const local = returnedLocalCall(node.argument, sourceCode);
+        if (local) current.localReturns.push({ local, node });
+      },
+      CallExpression(node) {
+        const current = functionStack.at(-1);
+        if (
+          current &&
+          isAssertionCall(node, assertionNames, sourceCode)
+        ) {
+          current.assertions.push(node);
+        }
       },
     };
   },

@@ -4,11 +4,11 @@ import { lintRule } from "./rule-tester.js";
 
 const options = [{ componentNames: ["Button", "IconButton"] }];
 
-const lint = (code) =>
+const lint = (code, ruleOptions = options) =>
   lintRule({
     code,
     filename: "src/components/ui/button.tsx",
-    options,
+    options: ruleOptions,
     rule,
     ruleName: "require-interactive-component-contract",
   });
@@ -194,8 +194,8 @@ test("require-interactive-component-contract follows one level of aliasing for t
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ busy: false }}
-        aria-disabled={isDisabled}
+        accessibilityState={{ disabled: isDisabled }}
+        disabled={isDisabled}
         style={({ pressed }) => [pressed]}
       >
         {children}
@@ -240,4 +240,105 @@ test("require-interactive-component-contract trusts declared contract components
   expect(incomplete[0]?.message).toContain("disabled behavior");
   expect(missingContent).toHaveLength(1);
   expect(missingContent[0]?.message).toContain("configurable content");
+});
+
+test("require-interactive-component-contract requires disabled wiring on the interactive primitive", () => {
+  const messages = lint(`function Button({ children, disabled, onPress }) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        onPress={onPress}
+        style={({ pressed }) => pressed && styles.pressed}
+      >
+        {children}
+      </Pressable>
+    );
+  }`);
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("disabled behavior");
+});
+
+test("require-interactive-component-contract does not treat static style as feedback", () => {
+  const messages = lint(`function Button({ children, disabled, onPress }) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        onPress={onPress}
+        style={{ padding: 8 }}
+      >
+        {children}
+      </Pressable>
+    );
+  }`);
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("press feedback");
+});
+
+test("require-interactive-component-contract does not combine evidence across return paths", () => {
+  const messages = lint(`function Button({ children, disabled, onPress, primary }) {
+    if (primary) {
+      return (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          onPress={onPress}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          {children}
+        </Pressable>
+      );
+    }
+    return <Pressable disabled={disabled} onPress={onPress}>{children}</Pressable>;
+  }`);
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("accessibility role");
+  expect(messages[0]?.message).toContain("press feedback");
+});
+
+test("require-interactive-component-contract follows single-child provider nesting for configured components", () => {
+  const messages = lint(`function Button({ children, disabled, loading, onPress }) {
+    return (
+      <SizeContext.Provider value="regular">
+        <VariantContext.Provider value="primary">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ busy: loading, disabled: disabled || loading }}
+            disabled={disabled || loading}
+            onPress={onPress}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            {loading ? <Spinner /> : children}
+          </Pressable>
+        </VariantContext.Provider>
+      </SizeContext.Provider>
+    );
+  }`, [{ componentNames: ["Button"], disabledProps: ["disabled", "loading"] }]);
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-interactive-component-contract wires every configured unavailable prop", () => {
+  const messages = lint(`function Button({ children, disabled, loading, onPress }) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ busy: loading, disabled }}
+        disabled={disabled}
+        onPress={onPress}
+        style={({ pressed }) => pressed && styles.pressed}
+      >
+        {loading ? <Spinner /> : children}
+      </Pressable>
+    );
+  }`, [{ componentNames: ["Button"], disabledProps: ["disabled", "loading"] }]);
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("disabled behavior");
 });

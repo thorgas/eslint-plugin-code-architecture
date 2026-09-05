@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0-alpha.7
+
+- Make `require-contract-assertions` inspect `return await` and invalidate postconditions after direct writes to returned members or their owning object.
+- Make `no-unasserted-return` follow a returned local binding back to its call initializer and require a dominating assertion of that binding.
+- Make `require-interactive-component-contract` inspect the actual interactive element on every return path, require actual disabled wiring for every accepted unavailable prop, reject static style as press feedback, and support configured primitives nested beneath single-child providers.
+
 ## 0.6.0-alpha.6
 
 - Let `require-interactive-component-contract` trust configured design-system roots through `contractComponents`. Feature wrappers inherit role, accessibility-state, and feedback ownership from those roots while still having to expose and forward their own disabled behavior and configurable content.

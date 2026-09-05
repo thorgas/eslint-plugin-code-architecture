@@ -226,3 +226,38 @@ test("no-unasserted-return still flags returning a call from an unrelated import
   expect(messages).toHaveLength(1);
   expect(messages[0]?.messageId).toBe("unassertedReturn");
 });
+
+test("no-unasserted-return follows a returned local call binding", () => {
+  const messages = lintRule({
+    code: `
+      function example(input) {
+        const result = load(input);
+        return result;
+      }
+    `,
+    options: [{ ignoreDelegates: false }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages.map(({ messageId }) => messageId)).toEqual([
+    "unassertedReturn",
+  ]);
+});
+
+test("no-unasserted-return accepts an asserted local call binding", () => {
+  const messages = lintRule({
+    code: `
+      function example(input) {
+        const result = load(input);
+        assert(result.ok);
+        return result;
+      }
+    `,
+    options: [{ ignoreDelegates: false }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(0);
+});

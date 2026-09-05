@@ -10,8 +10,9 @@ The minimal recommended config is just:
 
 With no options object, the rule has no `componentNames` allow-list, so it
 detects interactive primitives structurally: a function component whose
-rendered root element carries an `onPress`/`onClick`/`onPressIn` attribute, or
-whose root is a single wrapper around exactly one such element. Screens and
+rendered root is a known interactive element or carries an
+`onPress`/`onClick`/`onPressIn` attribute, or whose root is a single wrapper
+around exactly one such element. Screens and
 sections that merely contain buttons are not primitives and are not checked;
 the primitives they compose are. All attribute-name options below are optional
 overrides — pass them only to customize the defaults, which already cover
@@ -27,13 +28,22 @@ common React Native and DOM conventions:
   disabledAttributes: ["disabled", "isDisabled"],
   feedbackAttributes: ["style", "rippleColor", "android_ripple", "activeOpacity", "underlayColor"],
   feedbackStateNames: ["pressed", "hovered", "focused", "active"],
+  interactiveElementNames: ["Pressable", "PressableScale", "TouchableOpacity", "button"],
   contentProps: ["children", "label", "title", "text"],
 }]
 ```
 
-A complete component must render a role attribute, a state attribute, wire a
-configured disabled prop into a disabled/state attribute, expose configured
-press feedback, and render configured content.
+A complete component must render a role attribute and state attribute on its
+interactive element, wire every accepted configured unavailable prop into an
+actual disabled attribute, expose interaction-dependent feedback, and render
+configured content. A static `style` attribute is not interaction feedback.
+Every return path is checked independently, so unrelated descendants or an
+alternate complete branch cannot supply missing evidence.
+
+When `componentNames` explicitly identifies an owner, the rule follows a
+single-child wrapper chain to its interactive element. This supports provider
+nesting without recursively treating arbitrary screen descendants as one
+component contract.
 
 ### Contract component delegation
 
@@ -68,8 +78,8 @@ the configured `feedbackStateNames` (e.g. `style={({ pressed }) => [...]}`,
 the common Pressable pattern) counts as press feedback.
 
 The rule also follows one level of local `const` aliasing when checking
-whether an attribute traces back to a disabled prop, e.g.
-`const isDisabled = disabled; ... aria-disabled={isDisabled}`.
+whether an actual disabled attribute traces back to a disabled prop, e.g.
+`const isDisabled = disabled; ... disabled={isDisabled}`.
 
 The rule checks syntax, not runtime behavior. It cannot prove visual contrast, event semantics, or that a handler changes state. It supports functional components with statically identifiable names and does not inspect imported implementations.
 

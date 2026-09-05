@@ -13,7 +13,7 @@ async function loadProfile(id: string): Promise<Profile> {
 }
 ```
 
-`return f(...)` and `return await f(...)` smuggle a value out of a function without the function ever looking at it. Binding the result to a local first creates the place where its shape can be asserted — the same discipline `require-assertions` teaches, applied to the one statement that most often escapes it. A returned identifier, literal, or object built in place is not reported: those already passed through the function's own hands.
+`return f(...)` and `return await f(...)` smuggle a value out of a function without the function ever looking at it. The rule also follows a returned local binding back to a call initializer, so `const result = f(); return result` remains invalid until an assertion references `result` between initialization and return. Literals and objects built in place are not reported.
 
 A precondition or an assertion covering another return does not prove the returned call's result. This is therefore still invalid:
 
@@ -41,6 +41,8 @@ Conditional and logical returns are inspected path by path, so both calls in `re
 The rule shares production eligibility options with `require-assertions`: `minimumStatements`, `ignoreDirectCallbacks`, `directCallbackMaxStatements`, `ignoreJSXCallbacks`, `ignoreJSXComponents`, `ignoreNoInputClosures`, `ignoreReactHooks`, `ignoreTrivialConstructors`, and `ignoreDelegates`. `ignoreAssertionHelpers` excludes recognized assertion-helper implementations.
 
 Assertions inside a nested function count only toward that nested function, matching `require-assertions`' scoping.
+
+The local analysis is intentionally bounded to one variable declarator in the same function. It does not follow assignments, destructuring, aliases, or values passed through another function. The assertion must dominate the return and the binding must not be reassigned afterward.
 
 ## Production-derived example
 

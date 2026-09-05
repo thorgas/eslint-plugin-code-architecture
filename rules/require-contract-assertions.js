@@ -309,6 +309,50 @@ const variableWrittenBetween = (variable, start, end) =>
       reference.identifier.range[0] < end.range[0],
   ) ?? false;
 
+const writeTarget = (node) => {
+  let current = node;
+  while (
+    current.parent?.type === "MemberExpression" &&
+    current.parent.object === current
+  ) {
+    current = current.parent;
+  }
+  const parent = current.parent;
+  if (parent?.type === "AssignmentExpression" && parent.left === current) {
+    return current;
+  }
+  if (parent?.type === "UpdateExpression" && parent.argument === current) {
+    return current;
+  }
+  if (
+    parent?.type === "UnaryExpression" &&
+    parent.operator === "delete" &&
+    parent.argument === current
+  ) {
+    return current;
+  }
+  return null;
+};
+
+const memberWrittenBetween = (variable, returnedPath, start, end) =>
+  variable?.references.some(({ identifier }) => {
+    if (
+      identifier.range[0] <= start.range[0] ||
+      identifier.range[0] >= end.range[0]
+    ) {
+      return false;
+    }
+    const target = writeTarget(identifier);
+    const writtenPath = target && staticMemberPath(target);
+    if (!writtenPath || writtenPath === identifier.name) return false;
+    if (!returnedPath) return true;
+    return (
+      writtenPath === returnedPath ||
+      writtenPath.startsWith(`${returnedPath}.`) ||
+      returnedPath.startsWith(`${writtenPath}.`)
+    );
+  }) ?? false;
+
 const unwrapReturnedExpression = (expression) => {
   let current = expression;
   while (
@@ -322,7 +366,9 @@ const unwrapReturnedExpression = (expression) => {
       "TSTypeAssertion",
     ].includes(current.type)
   ) {
-    current = current.expression;
+    current = current.type === "AwaitExpression"
+      ? current.argument
+      : current.expression;
   }
   return current;
 };
@@ -383,6 +429,14 @@ const returnTarget = (expression, sourceCode, returnType) => {
 
 const returnIsAsserted = (state, returned, returnNode, sourceCode, options) => {
   const target = returnTarget(returned, sourceCode, state.returnType);
+  const returnedPath = staticMemberPath(returned);
+  let rootIdentifier = returned;
+  while (rootIdentifier.type === "MemberExpression") {
+    rootIdentifier = rootIdentifier.object;
+  }
+  const returnedVariable = rootIdentifier.type === "Identifier"
+    ? findVariable(sourceCode, rootIdentifier)
+    : null;
   return state.assertions.some((call) => {
     if (!assertionDominatesReturn(call, returnNode)) return false;
     const condition = assertionCondition(call);
@@ -392,6 +446,17 @@ const returnIsAsserted = (state, returned, returnNode, sourceCode, options) => {
       : assertionReferencesMember(condition, returned, sourceCode);
     if (!referencesReturn) return false;
     if (target && variableWrittenBetween(target.variable, call, returnNode)) {
+      return false;
+    }
+    if (
+      returnedVariable &&
+      memberWrittenBetween(
+        returnedVariable,
+        returned.type === "MemberExpression" ? returnedPath : null,
+        call,
+        returnNode,
+      )
+    ) {
       return false;
     }
     if (target && isVacuousExpression(condition, target, sourceCode)) {
