@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0-alpha.9
+
+- Let `no-unasserted-return` accept narrow `allowedReturnCalls` minimatch patterns for return contracts that are already guaranteed by their API, such as standard boolean predicates, while keeping every unlisted call strict.
+
 ## 0.6.0-alpha.8
 
 - Let `require-interactive-component-contract` trust configured primitives for press feedback only, and ignore noninteractive return paths during automatic detection while keeping explicitly named component owners strict on every JSX path.

@@ -261,3 +261,39 @@ test("no-unasserted-return accepts an asserted local call binding", () => {
 
   expect(messages).toHaveLength(0);
 });
+
+test("no-unasserted-return allows explicitly trusted return call patterns", () => {
+  const messages = lintRule({
+    code: `
+      function hasMatch(items, query) {
+        const normalized = query.trim();
+        return items.some((item) => item.label.toLowerCase().includes(normalized));
+      }
+      function matchesPath(name, path) {
+        const suffix = path.slice(1);
+        return name === suffix || name.endsWith(suffix);
+      }
+    `,
+    options: [{ allowedReturnCalls: ["*.some", "*.includes", "*.endsWith"] }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unasserted-return keeps unlisted calls strict when return patterns are configured", () => {
+  const messages = lintRule({
+    code: `
+      function load(items) {
+        prepare(items);
+        return fetchItems(items);
+      }
+    `,
+    options: [{ allowedReturnCalls: ["*.some"] }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+});

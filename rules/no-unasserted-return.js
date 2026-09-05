@@ -1,3 +1,5 @@
+import { minimatch } from "minimatch";
+
 import {
   functionName,
   isFunctionExempt,
@@ -90,6 +92,20 @@ const displayCalleeName = (node) => {
   return `${objectName}.${node.property.name}`;
 };
 
+const calleePatterns = (node) => {
+  const name = displayCalleeName(node);
+  if (node.type !== "MemberExpression" || node.computed) {
+    return name ? [name] : [];
+  }
+  const property = node.property.type === "Identifier" ? node.property.name : undefined;
+  return [...new Set([name, property && `*.${property}`].filter(Boolean))];
+};
+
+const callIsAllowed = (call, patterns) =>
+  calleePatterns(call.callee).some((name) =>
+    patterns.some((pattern) => minimatch(name, pattern)),
+  );
+
 // `return f(...)` and `return await f(...)` are the shapes that smuggle an
 // unexamined value out of a function. A returned identifier, literal, or
 // object built in place has already been through the function's own hands.
@@ -146,12 +162,19 @@ const localReturnIsAsserted = (current, node, local) =>
       !variableWrittenBetween(local.variable, call, node),
   );
 
-const reportReturns = (context, current) => {
+const reportReturns = (context, current, allowedReturnCalls) => {
   for (const { node, calls } of current.returns) {
-    for (const call of calls) reportUnassertedReturn(context, node, call);
+    for (const call of calls) {
+      if (!callIsAllowed(call, allowedReturnCalls)) {
+        reportUnassertedReturn(context, node, call);
+      }
+    }
   }
   for (const { node, local } of current.localReturns) {
-    if (!localReturnIsAsserted(current, node, local)) {
+    if (
+      !callIsAllowed(local.call, allowedReturnCalls) &&
+      !localReturnIsAsserted(current, node, local)
+    ) {
       reportUnassertedReturn(context, node, local.call);
     }
   }
@@ -175,6 +198,10 @@ export default {
         type: "object",
         additionalProperties: false,
         properties: {
+          allowedReturnCalls: {
+            type: "array",
+            items: { type: "string", minLength: 1 },
+          },
           assertionNames: {
             type: "array",
             minItems: 1,
@@ -197,6 +224,7 @@ export default {
   create(context) {
     const options = context.options[0] ?? {};
     const assertionNames = assertionNameSet(options.assertionNames);
+    const allowedReturnCalls = options.allowedReturnCalls ?? [];
     const eligibility = {
       ...options,
       checkExpressionBodies: true,
@@ -216,7 +244,7 @@ export default {
         options.ignoreAssertionHelpers &&
         assertionNames.has(functionName(current.node))
       ) return;
-      reportReturns(context, current);
+      reportReturns(context, current, allowedReturnCalls);
     };
 
     return {

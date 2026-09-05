@@ -38,6 +38,16 @@ A delegate computes nothing of its own, so the named callee carries the invarian
 
 Conditional and logical returns are inspected path by path, so both calls in `return ready ? loadFresh() : cached || loadFallback()` are reported.
 
+`allowedReturnCalls` accepts minimatch patterns for calls whose return contract is already known and does not benefit from a runtime postcondition. Member patterns match both a fully named receiver and the terminal member, so `*.some`, `*.includes`, and `*.endsWith` also cover chained receivers. Keep this list explicit and narrow; unlisted calls remain strict.
+
+```js
+{
+  "code-architecture/no-unasserted-return": ["error", {
+    allowedReturnCalls: ["*.some", "*.includes", "*.endsWith"],
+  }],
+}
+```
+
 The rule shares production eligibility options with `require-assertions`: `minimumStatements`, `ignoreDirectCallbacks`, `directCallbackMaxStatements`, `ignoreJSXCallbacks`, `ignoreJSXComponents`, `ignoreNoInputClosures`, `ignoreReactHooks`, `ignoreTrivialConstructors`, and `ignoreDelegates`. `ignoreAssertionHelpers` excludes recognized assertion-helper implementations.
 
 Assertions inside a nested function count only toward that nested function, matching `require-assertions`' scoping.
