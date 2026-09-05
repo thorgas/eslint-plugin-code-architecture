@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0-alpha.8
+
+- Let `require-interactive-component-contract` trust configured primitives for press feedback only, and ignore noninteractive return paths during automatic detection while keeping explicitly named component owners strict on every JSX path.
+
 ## 0.6.0-alpha.7
 
 - Make `require-contract-assertions` inspect `return await` and invalidate postconditions after direct writes to returned members or their owning object.

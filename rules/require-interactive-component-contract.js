@@ -125,6 +125,7 @@ const configuredContract = (options = {}) => ({
       "underlayColor",
     ],
   ),
+  feedbackComponents: new Set(options.feedbackComponents ?? []),
   feedbackStateNames: new Set(
     options.feedbackStateNames ?? ["pressed", "hovered", "focused", "active"],
   ),
@@ -253,12 +254,7 @@ const inspectAttribute = (node, state, props, sourceCode, extra) => {
   });
 };
 
-const analyzeComponentPath = (
-  node,
-  interactiveElement,
-  sourceCode,
-  contract,
-) => {
+const analyzeComponentPath = (node, interactiveElement, sourceCode, contract) => {
   const props = readPropsParameter(node.params[0]);
   const spreadableIdentifiers = collectSpreadableIdentifiers(
     node,
@@ -278,6 +274,11 @@ const analyzeComponentPath = (
   const delegatesContract = contract.contractComponents.has(
     jsxElementName(interactiveElement.openingElement.name),
   );
+  if (contract.feedbackComponents.has(
+    jsxElementName(interactiveElement.openingElement.name),
+  )) {
+    state.hasFeedback = true;
+  }
   if (delegatesContract) {
     state.hasFeedback = true;
     state.hasRole = true;
@@ -364,6 +365,7 @@ const rule = {
           disabledAttributes: stringArray,
           disabledProps: stringArray,
           feedbackAttributes: stringArray,
+          feedbackComponents: stringArray,
           feedbackStateNames: stringArray,
           interactiveElementNames: stringArray,
           roleAttributes: stringArray,
@@ -390,6 +392,7 @@ const rule = {
             hasAllowList ? Number.POSITIVE_INFINITY : 1,
             contract,
           );
+          if (!interactiveElement && !hasAllowList) continue;
           const state = interactiveElement
             ? analyzeComponentPath(
                 node,

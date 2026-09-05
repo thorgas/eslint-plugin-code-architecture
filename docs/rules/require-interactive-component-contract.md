@@ -27,6 +27,7 @@ common React Native and DOM conventions:
   disabledProps: ["disabled", "isDisabled"],
   disabledAttributes: ["disabled", "isDisabled"],
   feedbackAttributes: ["style", "rippleColor", "android_ripple", "activeOpacity", "underlayColor"],
+  feedbackComponents: ["PressableScale"], // primitives whose implementation already owns feedback
   feedbackStateNames: ["pressed", "hovered", "focused", "active"],
   interactiveElementNames: ["Pressable", "PressableScale", "TouchableOpacity", "button"],
   contentProps: ["children", "label", "title", "text"],
@@ -38,7 +39,13 @@ interactive element, wire every accepted configured unavailable prop into an
 actual disabled attribute, expose interaction-dependent feedback, and render
 configured content. A static `style` attribute is not interaction feedback.
 Every return path is checked independently, so unrelated descendants or an
-alternate complete branch cannot supply missing evidence.
+alternate complete branch cannot supply missing evidence. For automatically
+detected components, noninteractive return paths remain valid; an explicit
+`componentNames` owner list makes every returned JSX path contractual.
+
+Use `feedbackComponents` for primitives whose implementation already provides
+press feedback. This delegates feedback only; role, state, disabled wiring, and
+content must remain visible on the returned element.
 
 When `componentNames` explicitly identifies an owner, the rule follows a
 single-child wrapper chain to its interactive element. This supports provider

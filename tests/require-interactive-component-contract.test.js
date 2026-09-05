@@ -342,3 +342,48 @@ test("require-interactive-component-contract wires every configured unavailable 
   expect(messages).toHaveLength(1);
   expect(messages[0]?.message).toContain("disabled behavior");
 });
+
+test("require-interactive-component-contract trusts configured feedback components only for feedback", () => {
+  const messages = lint(`function Button({ children, disabled, onPress }) {
+    return (
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        onPress={onPress}
+        style={styles.button}
+      >
+        {children}
+      </PressableScale>
+    );
+  }`, [{
+    componentNames: ["Button"],
+    feedbackComponents: ["PressableScale"],
+  }]);
+
+  expect(messages).toHaveLength(0);
+});
+
+test("require-interactive-component-contract ignores noninteractive paths of auto-detected components", () => {
+  const messages = lintRule({
+    code: `function Notice({ children, disabled, onPress }) {
+      if (!onPress) return <Text>{children}</Text>;
+      return (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          onPress={onPress}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          {children}
+        </Pressable>
+      );
+    }`,
+    filename: "src/components/ui/notice.tsx",
+    rule,
+    ruleName: "require-interactive-component-contract",
+  });
+
+  expect(messages).toHaveLength(0);
+});
