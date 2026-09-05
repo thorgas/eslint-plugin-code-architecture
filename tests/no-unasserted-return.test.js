@@ -297,3 +297,54 @@ test("no-unasserted-return keeps unlisted calls strict when return patterns are 
 
   expect(messages).toHaveLength(1);
 });
+
+test("no-unasserted-return checks every call in a returned conditional local", () => {
+  const messages = lintRule({
+    code: `
+      function example(condition) {
+        const result = condition ? values.some(test) : load();
+        return result;
+      }
+    `,
+    options: [{ allowedReturnCalls: ["values.some"] }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("load");
+});
+
+test("no-unasserted-return checks every call in a returned logical local", () => {
+  const messages = lintRule({
+    code: `
+      function example(cached) {
+        const result = cached || values.some(test) || load();
+        return result;
+      }
+    `,
+    options: [{ allowedReturnCalls: ["values.some"] }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("load");
+});
+
+test("no-unasserted-return rejects an assertion invalidated by a member write", () => {
+  const messages = lintRule({
+    code: `
+      function example(input) {
+        const result = load(input);
+        assert(result.valid);
+        result.valid = false;
+        return result;
+      }
+    `,
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+});

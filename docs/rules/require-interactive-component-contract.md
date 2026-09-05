@@ -73,12 +73,11 @@ function ActionButton({ children, disabled = false, label, onPress }) {
 
 ### Prop forwarding
 
-A `JSXSpreadAttribute` forwarding onto the interactive element (e.g.
-`<TouchableOpacity {...rest} />`, `<button {...props} />`) satisfies role,
-state, and disabled forwarding simultaneously. This is recognized when the
-spread argument is the props identifier itself, a rest element pulled from
-destructured props, or an identifier that can be traced back to one of those
-through one level of local aliasing (e.g. `const forwarded = rest;`).
+An unknown `JSXSpreadAttribute` does not prove role, state, or disabled
+forwarding. A destructured rest object excludes named props, and an arbitrary
+spread may omit required accessibility properties. JSX order is honored: a
+later spread invalidates earlier explicit evidence, while explicit attributes
+after a spread establish the final contract.
 
 A `style` attribute given a function value whose parameter destructures one of
 the configured `feedbackStateNames` (e.g. `style={({ pressed }) => [...]}`,

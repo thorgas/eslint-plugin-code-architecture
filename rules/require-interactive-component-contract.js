@@ -153,38 +153,6 @@ const configuredContract = (options = {}) => ({
   ),
 });
 
-// Identifiers that a JSXSpreadAttribute's argument can resolve to (one level
-// of aliasing) and still count as forwarding role/state/disabled props: the
-// props identifier itself, a rest element pulled from destructured props, or
-// a local const/let bound directly to one of those.
-const collectSpreadableIdentifiers = (node, sourceCode, props) => {
-  const names = new Set();
-  if (props.propsIdentifier) names.add(props.propsIdentifier);
-
-  const params = node.params[0];
-  if (params?.type === "ObjectPattern") {
-    const rest = params.properties.find((p) => p.type === "RestElement");
-    if (rest?.argument.type === "Identifier") names.add(rest.argument.name);
-  }
-
-  walkNodes(
-    node.body,
-    sourceCode,
-    (current) => {
-      if (current.type !== "VariableDeclarator") return;
-      if (
-        current.id.type === "Identifier" &&
-        current.init?.type === "Identifier" &&
-        names.has(current.init.name)
-      ) {
-        names.add(current.id.name);
-      }
-    },
-    { skipFunctions: true },
-  );
-  return names;
-};
-
 // Builds a map of local identifier -> prop name for one level of `const x =
 // <propRef>` aliasing, so e.g. `const isDisabled = disabled` lets attributes
 // referencing `isDisabled` still resolve back to the `disabled` prop.
@@ -256,11 +224,6 @@ const inspectAttribute = (node, state, props, sourceCode, extra) => {
 
 const analyzeComponentPath = (node, interactiveElement, sourceCode, contract) => {
   const props = readPropsParameter(node.params[0]);
-  const spreadableIdentifiers = collectSpreadableIdentifiers(
-    node,
-    sourceCode,
-    props,
-  );
   const propAliases = collectPropAliases(node, sourceCode, props);
   const state = {
     acceptedProps: new Set(props.bindings.values()),
@@ -296,16 +259,13 @@ const analyzeComponentPath = (node, interactiveElement, sourceCode, contract) =>
         propAliases,
       });
     }
-    if (
-      attribute.type === "JSXSpreadAttribute" &&
-      attribute.argument.type === "Identifier" &&
-      spreadableIdentifiers.has(attribute.argument.name)
-    ) {
-      state.hasRole = true;
-      state.hasState = true;
-      for (const name of contract.disabledProps) {
-        if (state.acceptedProps.has(name)) state.disabledBehaviorProps.add(name);
-      }
+    if (attribute.type === "JSXSpreadAttribute") {
+      state.hasRole = delegatesContract;
+      state.hasState = delegatesContract;
+      state.hasFeedback = delegatesContract || contract.feedbackComponents.has(
+        jsxElementName(interactiveElement.openingElement.name),
+      );
+      state.disabledBehaviorProps.clear();
     }
   }
   walkNodes(interactiveElement, sourceCode, (current) => {

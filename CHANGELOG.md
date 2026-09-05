@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0-alpha.10
+
+- Make `no-unasserted-return` check every call contributing to a returned local binding and reject postconditions invalidated by member writes using shared mutation analysis.
+- Make `require-interactive-component-contract` treat unknown JSX spreads conservatively and honor attribute override order instead of inferring accessibility and disabled behavior.
+- Document `allowedReturnCalls` as an explicit trusted-name exception and recommend receiver-specific patterns.
+
 ## 0.6.0-alpha.9
 
 - Let `no-unasserted-return` accept narrow `allowedReturnCalls` minimatch patterns for return contracts that are already guaranteed by their API, such as standard boolean predicates, while keeping every unlisted call strict.

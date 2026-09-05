@@ -38,12 +38,12 @@ A delegate computes nothing of its own, so the named callee carries the invarian
 
 Conditional and logical returns are inspected path by path, so both calls in `return ready ? loadFresh() : cached || loadFallback()` are reported.
 
-`allowedReturnCalls` accepts minimatch patterns for calls whose return contract is already known and does not benefit from a runtime postcondition. Member patterns match both a fully named receiver and the terminal member, so `*.some`, `*.includes`, and `*.endsWith` also cover chained receivers. Keep this list explicit and narrow; unlisted calls remain strict.
+`allowedReturnCalls` accepts trusted callee-name minimatch patterns. This is a naming exception, not type evidence: `*.some` can also match a project method named `some`. Prefer receiver-specific entries such as `assignments.some`; unlisted calls remain strict. When a returned local is initialized by a conditional or logical expression, every contributing call is checked independently, so an allowed branch cannot hide another call.
 
 ```js
 {
   "code-architecture/no-unasserted-return": ["error", {
-    allowedReturnCalls: ["*.some", "*.includes", "*.endsWith"],
+    allowedReturnCalls: ["assignments.some", "routeName.endsWith"],
   }],
 }
 ```
@@ -52,7 +52,7 @@ The rule shares production eligibility options with `require-assertions`: `minim
 
 Assertions inside a nested function count only toward that nested function, matching `require-assertions`' scoping.
 
-The local analysis is intentionally bounded to one variable declarator in the same function. It does not follow assignments, destructuring, aliases, or values passed through another function. The assertion must dominate the return and the binding must not be reassigned afterward.
+The local analysis is intentionally bounded to one variable declarator in the same function. It does not follow assignments, destructuring, aliases, or values passed through another function. The assertion must dominate the return, and neither the binding nor one of its members may be written afterward.
 
 ## Production-derived example
 

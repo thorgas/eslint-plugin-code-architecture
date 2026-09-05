@@ -64,29 +64,91 @@ test("require-interactive-component-contract ignores other components", () => {
 });
 
 // (a) JSXSpreadAttribute forwarding
-test("require-interactive-component-contract treats spreading the props identifier as forwarding role/state/disabled", () => {
+test("require-interactive-component-contract does not infer accessibility or disabled behavior from an unknown props spread", () => {
   const messages = lint(`function Button(props) {
     return <TouchableOpacity {...props} testID={String(props.disabled)} style={({ pressed }) => [pressed]}>{props.children}</TouchableOpacity>;
   }`);
 
-  expect(messages).toHaveLength(0);
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("accessibility role");
+  expect(messages[0]?.message).toContain("accessibility state");
+  expect(messages[0]?.message).toContain("disabled behavior");
 });
 
-test("require-interactive-component-contract treats spreading a destructured rest element as forwarding role/state/disabled", () => {
+test("require-interactive-component-contract excludes destructured props from rest forwarding", () => {
   const messages = lint(`function Button({ onPress, children, disabled, ...rest }) {
     return <button {...rest} style={({ pressed }) => [pressed]}>{children}</button>;
   }`);
 
-  expect(messages).toHaveLength(0);
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("disabled behavior");
 });
 
-test("require-interactive-component-contract follows one level of aliasing when tracing a spread argument", () => {
+test("require-interactive-component-contract does not trust an aliased unknown rest spread", () => {
   const messages = lint(`function Button({ children, disabled, ...rest }) {
     const forwarded = rest;
     return <button {...forwarded} style={({ pressed }) => [pressed]}>{children}</button>;
   }`);
 
-  expect(messages).toHaveLength(0);
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("accessibility role");
+  expect(messages[0]?.message).toContain("accessibility state");
+  expect(messages[0]?.message).toContain("disabled behavior");
+});
+
+test("require-interactive-component-contract honors JSX override precedence", () => {
+  const overridden = lint(`function Button({ children, disabled, ...rest }) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+        {...rest}
+      >
+        {children}
+      </Pressable>
+    );
+  }`);
+  const restored = lint(`function Button({ children, disabled, ...rest }) {
+    return (
+      <Pressable
+        {...rest}
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+      >
+        {children}
+      </Pressable>
+    );
+  }`);
+
+  expect(overridden).toHaveLength(1);
+  expect(overridden[0]?.message).toContain("accessibility role");
+  expect(overridden[0]?.message).toContain("accessibility state");
+  expect(overridden[0]?.message).toContain("disabled behavior");
+  expect(restored).toHaveLength(0);
+});
+
+test("require-interactive-component-contract rejects an explicit disabled override after a rest spread", () => {
+  const messages = lint(`function Button({ children, disabled, ...rest }) {
+    return (
+      <Pressable
+        {...rest}
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={false}
+        onPress={go}
+        style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+      >
+        {children}
+      </Pressable>
+    );
+  }`);
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("disabled behavior");
 });
 
 // (b) defaults / componentNames optional

@@ -9,6 +9,10 @@ import {
   findVariable,
   isAssertionCall,
 } from "./assertion-helpers.js";
+import {
+  memberWrittenBetween,
+  variableWrittenBetween,
+} from "./assertion-mutation-helpers.js";
 
 const controlFlowTypes = new Set([
   "CatchClause",
@@ -74,14 +78,6 @@ const assertionReferencesVariable = (call, variable) => {
     isAncestor(condition, identifier),
   );
 };
-
-const variableWrittenBetween = (variable, start, end) =>
-  variable.references.some(
-    (reference) =>
-      reference.isWrite() &&
-      reference.identifier.range[0] > start.range[0] &&
-      reference.identifier.range[0] < end.range[0],
-  );
 
 const displayCalleeName = (node) => {
   if (node.type === "Identifier") return node.name;
@@ -150,7 +146,7 @@ const returnedLocalCall = (node, sourceCode) => {
   )?.node;
   if (!definition?.init) return null;
   const calls = returnedCalls(definition.init);
-  return calls.length > 0 ? { call: calls[0], definition, variable } : null;
+  return calls.length > 0 ? { calls, definition, variable } : null;
 };
 
 const localReturnIsAsserted = (current, node, local) =>
@@ -159,7 +155,8 @@ const localReturnIsAsserted = (current, node, local) =>
       call.range[0] > local.definition.range[0] &&
       assertionDominatesReturn(call, node) &&
       assertionReferencesVariable(call, local.variable) &&
-      !variableWrittenBetween(local.variable, call, node),
+      !variableWrittenBetween(local.variable, call, node) &&
+      !memberWrittenBetween(local.variable, null, call, node),
   );
 
 const reportReturns = (context, current, allowedReturnCalls) => {
@@ -171,11 +168,13 @@ const reportReturns = (context, current, allowedReturnCalls) => {
     }
   }
   for (const { node, local } of current.localReturns) {
-    if (
-      !callIsAllowed(local.call, allowedReturnCalls) &&
-      !localReturnIsAsserted(current, node, local)
-    ) {
-      reportUnassertedReturn(context, node, local.call);
+    for (const call of local.calls) {
+      if (
+        !callIsAllowed(call, allowedReturnCalls) &&
+        !localReturnIsAsserted(current, node, local)
+      ) {
+        reportUnassertedReturn(context, node, call);
+      }
     }
   }
 };
