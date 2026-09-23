@@ -57,6 +57,41 @@ test("no-barrel-imports exempts an allowed package barrel by specifier", () => {
   expect(messages[0]?.messageId).toBe("packageBarrel");
 });
 
+test("no-barrel-imports detects directory imports that resolve to an index file", () => {
+  const messages = lintRule({
+    code: 'import x from "./feature";',
+    filename: "tests/fixtures/no-barrel-imports/consumer.ts",
+    rule,
+    ruleName: "no-barrel-imports",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("localBarrel");
+});
+
+test("no-barrel-imports detects '.' resolving to the containing directory's index file", () => {
+  const messages = lintRule({
+    code: 'import x from ".";',
+    filename: "tests/fixtures/no-barrel-imports/feature/consumer.ts",
+    rule,
+    ruleName: "no-barrel-imports",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("localBarrel");
+});
+
+test("no-barrel-imports does not flag a directory import with no index file", () => {
+  const messages = lintRule({
+    code: 'import x from "./not-a-barrel";',
+    filename: "tests/fixtures/no-barrel-imports/consumer.ts",
+    rule,
+    ruleName: "no-barrel-imports",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
 test("no-barrel-imports matches allowed barrels with globstar patterns", () => {
   const messages = lintRule({
     code: 'import a from "./index.js"; import b from "./nested/deep/index.js";',

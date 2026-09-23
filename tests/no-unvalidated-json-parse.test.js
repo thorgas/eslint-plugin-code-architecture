@@ -132,3 +132,53 @@ test("no-unvalidated-json-parse rejects deferred validation functions", () => {
   expect(messages).toHaveLength(1);
   expect(messages[0]?.messageId).toBe("unvalidatedParse");
 });
+
+test("no-unvalidated-json-parse matches Zod-style schema variable validators via glob defaults", () => {
+  const messages = lintRule({
+    code: "const config = MySchema.parse(JSON.parse(content));",
+    rule,
+    ruleName: "no-unvalidated-json-parse",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unvalidated-json-parse matches configured glob validationCalls", () => {
+  const messages = lintRule({
+    code: "const config = MySchema.safeParse(JSON.parse(content));",
+    options: [{ validationCalls: ["*.safeParse"] }],
+    rule,
+    ruleName: "no-unvalidated-json-parse",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unvalidated-json-parse allows guard checks on the parsed value before validation", () => {
+  const messages = lintRule({
+    code: `
+      const raw = JSON.parse(s);
+      if (!raw) throw new Error();
+      return Schema.decodeUnknownSync(T)(raw);
+    `,
+    rule,
+    ruleName: "no-unvalidated-json-parse",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unvalidated-json-parse still rejects non-guard uses before validation", () => {
+  const messages = lintRule({
+    code: `
+      const parsed = JSON.parse(content);
+      inspect(parsed);
+      const config = Schema.decodeUnknownSync(Config)(parsed);
+    `,
+    rule,
+    ruleName: "no-unvalidated-json-parse",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("unvalidatedParse");
+});

@@ -1,4 +1,5 @@
 import {
+  containsJsx,
   functionName,
   unwrapExpression,
 } from "./composition-helpers.js";
@@ -16,11 +17,71 @@ const propertyName = (property) => {
   return undefined;
 };
 
-const variableObject = (node) => {
+// Members extracted from a plain object literal, e.g.
+// `{ Root: RootComponent, Item }`.
+const objectExpressionMembers = (value) =>
+  value.properties
+    .filter((property) => property.type === "Property")
+    .map((property) => ({
+      name: propertyName(property),
+      reportNode: property,
+      valueNode: property.value,
+    }))
+    .filter((member) => member.name);
+
+// Members extracted from `Object.assign(Root, { Item, Trigger })`: the first
+// argument is the boundary itself (usually invoked directly as the compound
+// component), and the object literal's own keys are the remaining public
+// parts.
+const objectAssignCall = (node, state) => {
+  const callee = node.callee;
+  if (
+    callee?.type !== "MemberExpression" ||
+    callee.computed ||
+    callee.object.type !== "Identifier" ||
+    callee.object.name !== "Object" ||
+    callee.property.type !== "Identifier" ||
+    callee.property.name !== "assign"
+  ) {
+    return undefined;
+  }
+  const [boundaryArgument, membersArgument] = node.arguments;
+  if (
+    !boundaryArgument ||
+    boundaryArgument.type !== "Identifier" ||
+    membersArgument?.type !== "ObjectExpression"
+  ) {
+    return undefined;
+  }
+  const boundaryName = state.boundaries.has(boundaryArgument.name)
+    ? boundaryArgument.name
+    : [...state.boundaries][0];
+  return [
+    { name: boundaryName, reportNode: boundaryArgument, valueNode: boundaryArgument },
+    ...objectExpressionMembers(membersArgument),
+  ];
+};
+
+const variableCandidate = (node, state) => {
   if (node.id.type !== "Identifier") return undefined;
   const value = unwrapExpression(node.init);
-  if (value?.type !== "ObjectExpression") return undefined;
-  return { name: node.id.name, node, value };
+  if (!value) return undefined;
+  if (value.type === "ObjectExpression") {
+    return { members: objectExpressionMembers(value), name: node.id.name, node };
+  }
+  if (value.type === "CallExpression") {
+    const members = objectAssignCall(value, state);
+    if (members) return { members, name: node.id.name, node };
+  }
+  return undefined;
+};
+
+const exportDefaultCandidate = (node, state) => {
+  const value = unwrapExpression(node.declaration);
+  if (value?.type !== "CallExpression") return undefined;
+  const members = objectAssignCall(value, state);
+  if (!members) return undefined;
+  return { exported: true, members, name: "", node };
 };
 
 const recordExport = (state, node) => {
@@ -40,32 +101,39 @@ const recordExport = (state, node) => {
 
 const recordBinding = (state, node) => {
   const name = functionName(node);
-  if (name) state.componentBindings.add(name);
+  if (name && containsJsx(node, state.sourceCode)) {
+    state.componentBindings.add(name);
+  }
 };
 
 const recordVariable = (state, node) => {
-  const candidate = variableObject(node);
+  const candidate = variableCandidate(node, state);
   if (candidate) state.candidates.push(candidate);
   if (node.id.type !== "Identifier" || !node.init) return;
   state.initializers.set(node.id.name, node.init);
+  const unwrapped = unwrapExpression(node.init);
   if (
     ["ArrowFunctionExpression", "FunctionExpression"].includes(
-      unwrapExpression(node.init)?.type,
-    )
+      unwrapped?.type,
+    ) &&
+    containsJsx(unwrapped, state.sourceCode)
   ) {
     state.componentBindings.add(node.id.name);
   }
 };
 
+// A compound member is only a valid component binding when it either
+// references a function that renders JSX, or is a call to a configured
+// wrapper (forwardRef/memo/...) around such a function. Member expressions
+// (namespace re-exports from another module) are trusted, since their
+// definition is not resolvable from this file.
 const componentBinding = (node, state, seen = new Set()) => {
   const value = unwrapExpression(node);
   if (!value) return false;
-  if (
-    ["ArrowFunctionExpression", "FunctionExpression", "MemberExpression"]
-      .includes(value.type)
-  ) {
-    return true;
+  if (["ArrowFunctionExpression", "FunctionExpression"].includes(value.type)) {
+    return containsJsx(value, state.sourceCode);
   }
+  if (value.type === "MemberExpression") return true;
   if (value.type === "CallExpression") {
     const callee = unwrapExpression(value.callee);
     const wrapper =
@@ -101,20 +169,21 @@ const canonicalBinding = (node, state, seen = new Set()) => {
 
 const reportCandidate = (state, candidate) => {
   if (state.ignoredNamePattern.test(candidate.name)) return;
-  const properties = candidate.value.properties.filter(
-    (property) => property.type === "Property",
+  const boundaryMembers = candidate.members.filter(
+    (member) => state.boundaries.has(member.name),
   );
-  const names = properties.map(propertyName);
-  const hasBoundary = names.some((name) => state.boundaries.has(name));
+  const hasBoundary = boundaryMembers.some((member) =>
+    componentBinding(member.valueNode, state),
+  );
   if (!hasBoundary && !state.compoundPattern?.test(candidate.name)) return;
   if (!hasBoundary) {
     state.context.report({ node: candidate.node, messageId: "missingBoundary" });
   }
-  if (!state.exportedNames.has(candidate.name)) {
+  if (!candidate.exported && !state.exportedNames.has(candidate.name)) {
     state.context.report({ node: candidate.node, messageId: "privateApi" });
   }
-  const parts = names.filter(
-    (name) => name && !state.boundaries.has(name),
+  const parts = candidate.members.filter(
+    (member) => member.name && !state.boundaries.has(member.name),
   );
   if (parts.length < state.minimumParts) {
     state.context.report({
@@ -123,33 +192,32 @@ const reportCandidate = (state, candidate) => {
       data: { minimum: String(state.minimumParts) },
     });
   }
-  reportInvalidMembers(state, properties);
+  reportInvalidMembers(state, candidate.members);
 };
 
-const reportInvalidMembers = (state, properties) => {
+const reportInvalidMembers = (state, members) => {
   const bindings = new Map();
-  for (const property of properties) {
-    const name = propertyName(property);
-    if (!name) continue;
-    if (!componentBinding(property.value, state)) {
+  for (const member of members) {
+    if (!member.name) continue;
+    if (!componentBinding(member.valueNode, state)) {
       state.context.report({
-        node: property,
+        node: member.reportNode,
         messageId: "invalidMember",
-        data: { member: name },
+        data: { member: member.name },
       });
       continue;
     }
-    const binding = canonicalBinding(property.value, state);
+    const binding = canonicalBinding(member.valueNode, state);
     if (!binding) continue;
     const previous = bindings.get(binding);
     if (previous) {
       state.context.report({
-        node: property,
+        node: member.reportNode,
         messageId: "duplicateBinding",
-        data: { first: previous, member: name },
+        data: { first: previous, member: member.name },
       });
     } else {
-      bindings.set(binding, name);
+      bindings.set(binding, member.name);
     }
   }
 };
@@ -205,10 +273,15 @@ const rule = {
         "u",
       ),
       minimumParts: options.minimumParts ?? 2,
+      sourceCode: context.sourceCode,
       wrapperNames: new Set(options.wrapperNames ?? ["forwardRef", "memo"]),
     };
     return {
       ":function": (node) => recordBinding(state, node),
+      ExportDefaultDeclaration(node) {
+        const candidate = exportDefaultCandidate(node, state);
+        if (candidate) state.candidates.push(candidate);
+      },
       ExportNamedDeclaration: (node) => recordExport(state, node),
       ImportDeclaration(node) {
         for (const specifier of node.specifiers) {

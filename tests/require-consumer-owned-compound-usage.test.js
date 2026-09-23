@@ -60,6 +60,30 @@ function Example({ children }) {
   expect(messages).toHaveLength(0);
 });
 
+test("registers Object.assign(Root, {...}) compound namespaces", () => {
+  const messages = lint(`function Root({ children }) { return <div>{children}</div>; }
+function Item() { return <span />; }
+const Menu = Object.assign(Root, { Item });
+function Example() {
+  return <Menu.Root><Menu.Item /></Menu.Root>;
+}`);
+
+  expect(messages).toHaveLength(0);
+});
+
+test("rejects a self-closing Object.assign(Root, {...}) boundary", () => {
+  const messages = lint(`function Root({ children }) { return <div>{children}</div>; }
+function Item() { return <span />; }
+const Menu = Object.assign(Root, { Item });
+function Example() {
+  return <Menu.Root />;
+}`);
+
+  expect(messages.map(({ messageId }) => messageId)).toEqual([
+    "selfClosingBoundary",
+  ]);
+});
+
 test("supports aliases and configured boundary member names", () => {
   const messages = lint(
     `import { Counter as Count } from "./counter";

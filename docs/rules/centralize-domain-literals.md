@@ -16,6 +16,8 @@ Invalid: `const status = "completed"`. Valid: `const status = JOB_STATUS.COMPLET
 
 ESLint cannot reliably count a literal across independently linted files, so consumers declare domain vocabulary explicitly. That enforces centralization from first use instead of waiting for duplication.
 
+The vocabulary does not have to be written by hand. The `domain-vocabulary` skill in [thorgas/skills](https://github.com/thorgas/skills) mines a codebase for repeated domain literals, groups them into `as const` constant objects in a constants module, and emits the `literals` and `constantsFiles` configuration for this rule together with a first `enforce-module-boundaries` module map. Re-run it when a feature adds new vocabulary.
+
 ## Production-derived example
 
 This redacted navigation flow gives persisted routes one owner:

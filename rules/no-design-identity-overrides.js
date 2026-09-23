@@ -1,5 +1,6 @@
 import { walkNodes } from "./composition-helpers.js";
 import {
+  constObjectLiteral,
   jsxAttributeExpression,
   jsxAttributeName,
   jsxElementName,
@@ -86,7 +87,11 @@ const rule = {
           if (!styleAttributes.has(attributeName)) continue;
           const expression = jsxAttributeExpression(attribute);
           if (!expression) continue;
-          walkNodes(expression, sourceCode, (current) => {
+          const resolved =
+            expression.type === "Identifier"
+              ? (constObjectLiteral(sourceCode, expression) ?? expression)
+              : expression;
+          walkNodes(resolved, sourceCode, (current) => {
             if (current.type !== "Property") return;
             const property = propertyName(current);
             if (property && identityProperties.has(property)) {

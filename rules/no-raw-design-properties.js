@@ -15,6 +15,27 @@ const stringArray = {
 };
 const designValue = { anyOf: [{ type: "string" }, { type: "number" }] };
 
+const branchLiterals = (expression) => {
+  if (expression.type === "ConditionalExpression") {
+    return [expression.consequent, expression.alternate].map(staticLiteral);
+  }
+  if (expression.type === "LogicalExpression") {
+    return [staticLiteral(expression.right)];
+  }
+  return undefined;
+};
+
+const reportDesignLiteral = (context, node, property, config, value) =>
+  context.report({
+    node,
+    messageId: "rawDesignProperty",
+    data: {
+      property,
+      replacement: config.replacement ?? "an approved design token",
+      value: String(value),
+    },
+  });
+
 const rule = {
   meta: {
     type: "problem",
@@ -70,18 +91,29 @@ const rule = {
 
     const inspect = (property, expression) => {
       const config = configuredProperties.get(property);
-      if (!config) return;
+      if (!config || !expression) return;
+
       const literal = staticLiteral(expression);
-      if (!literal || config.allowedValues?.includes(literal.value)) return;
-      context.report({
-        node: literal.node,
-        messageId: "rawDesignProperty",
-        data: {
-          property,
-          replacement: config.replacement ?? "an approved design token",
-          value: String(literal.value),
-        },
-      });
+      if (literal) {
+        if (config.allowedValues?.includes(literal.value)) return;
+        reportDesignLiteral(context, literal.node, property, config, literal.value);
+        return;
+      }
+
+      const branches = branchLiterals(expression);
+      if (!branches || branches.some((branch) => !branch)) return;
+      if (
+        branches.every((branch) => config.allowedValues?.includes(branch.value))
+      ) {
+        return;
+      }
+      reportDesignLiteral(
+        context,
+        expression,
+        property,
+        config,
+        branches.map(({ value }) => String(value)).join(" / "),
+      );
     };
 
     return {

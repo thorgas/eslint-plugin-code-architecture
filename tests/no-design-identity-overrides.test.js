@@ -40,6 +40,14 @@ test("no-design-identity-overrides reports inline style identity keys", () => {
   expect(messages).toHaveLength(2);
 });
 
+test("no-design-identity-overrides resolves a const object literal referenced by style", () => {
+  const messages = lint(
+    "const overrideStyle = { backgroundColor: 'red' };\n<Button style={overrideStyle} />;",
+  );
+
+  expect(messages).toHaveLength(1);
+});
+
 test("no-design-identity-overrides permits layout overrides", () => {
   const messages = lint(
     '<Button style={{ marginTop: 12, width: "100%", flex: 1 }} />;',

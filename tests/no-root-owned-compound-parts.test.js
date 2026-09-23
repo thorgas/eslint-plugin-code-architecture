@@ -92,6 +92,49 @@ test("checks assembly inside anonymous render callbacks", () => {
   expect(messages[0]?.messageId).toBe("ownedPart");
 });
 
+test("does not flag an unrelated same-prefix component when a compound object exists", () => {
+  const messages = lint(`function AccordionShadowOverlay() { return <div className="shadow" />; }
+function AccordionRoot({ children }) {
+  return <AccordionContext.Provider value={{}}>
+    <AccordionShadowOverlay />
+    {children}
+  </AccordionContext.Provider>;
+}
+export const Accordion = { Root: AccordionRoot };`);
+
+  expect(messages).toHaveLength(0);
+});
+
+test("still flags a genuine part owned by the compound object's own members", () => {
+  const messages = lint(`function AccordionItem() { return <div />; }
+function AccordionRoot({ children }) {
+  return <AccordionContext.Provider value={{}}>
+    <AccordionItem />
+    {children}
+  </AccordionContext.Provider>;
+}
+export const Accordion = { Root: AccordionRoot, Item: AccordionItem };`);
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("ownedPart");
+});
+
+test("uses Object.assign(Root, {...}) compound members as namespace ground truth", () => {
+  const messages = lint(`function AccordionShadowOverlay() { return <div className="shadow" />; }
+function Item() { return <div />; }
+function AccordionRoot({ children }) {
+  return <AccordionContext.Provider value={{}}>
+    <AccordionShadowOverlay />
+    <Item />
+    {children}
+  </AccordionContext.Provider>;
+}
+export const Accordion = Object.assign(AccordionRoot, { Item });`);
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.messageId).toBe("ownedPart");
+});
+
 test("supports explicit infrastructure exceptions", () => {
   const messages = lint(
     `function AccordionRoot({ children }) {

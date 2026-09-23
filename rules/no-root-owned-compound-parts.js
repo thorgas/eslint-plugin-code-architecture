@@ -48,6 +48,50 @@ const objectNamespaces = (node) => {
   return mappings;
 };
 
+// `Object.assign(Root, { Item, Trigger })`: the first argument is the
+// boundary itself, and the object literal's own keys are the remaining
+// public parts. Synthesize the same {componentName, namespace, part} shape
+// that `objectNamespaces` produces for plain object-literal compounds.
+const objectAssignNamespaces = (node) => {
+  if (node.id.type !== "Identifier" || node.init?.type !== "CallExpression") {
+    return [];
+  }
+  const { arguments: args, callee } = node.init;
+  if (
+    callee?.type !== "MemberExpression" ||
+    callee.computed ||
+    callee.object.type !== "Identifier" ||
+    callee.object.name !== "Object" ||
+    callee.property.type !== "Identifier" ||
+    callee.property.name !== "assign"
+  ) {
+    return [];
+  }
+  const [boundaryArgument, membersArgument] = args;
+  if (
+    boundaryArgument?.type !== "Identifier" ||
+    membersArgument?.type !== "ObjectExpression"
+  ) {
+    return [];
+  }
+  const mappings = [
+    { componentName: boundaryArgument.name, namespace: node.id.name, part: "Root" },
+  ];
+  for (const property of membersArgument.properties) {
+    if (property.type !== "Property" || property.computed) continue;
+    const key =
+      property.key.type === "Identifier" ? property.key.name : undefined;
+    if (!key) continue;
+    const componentName =
+      property.value.type === "Identifier"
+        ? property.value.name
+        : functionName(property.value);
+    if (!componentName) continue;
+    mappings.push({ componentName, namespace: node.id.name, part: key });
+  }
+  return mappings;
+};
+
 const ownedByNamespace = (candidate, namespace, componentName) => {
   if (!candidate.direct) return candidate.namespace === namespace;
   if (candidate.display === componentName) return false;
@@ -86,7 +130,10 @@ const recordNamespaceMappings = (state, node) => {
   ) {
     state.aliases.set(node.id.name, node.init.name);
   }
-  for (const mapping of objectNamespaces(node)) {
+  for (const mapping of [
+    ...objectNamespaces(node),
+    ...objectAssignNamespaces(node),
+  ]) {
     if (["Provider", "Root"].includes(mapping.part)) {
       const namespaces =
         state.namespaceMappings.get(mapping.componentName) ?? new Set();
@@ -108,21 +155,40 @@ const resolveAlias = (name, aliases, seen = new Set()) => {
 
 const reportOwnedParts = (state) => {
   for (const root of state.roots) {
-    const namespaces = new Set(
-      state.namespaceMappings.get(root.name) ?? [],
+    // When the file defines the compound object for this root (an object
+    // literal or `Object.assign(Root, {...})`), its member names are the
+    // namespace ground truth: only those explicit namespaces are checked,
+    // and direct JSX identifiers must resolve to an actual member binding.
+    // Prefix matching (`AccordionShadowOverlay` "belongs" to `Accordion`
+    // because it starts with the same string) is only used as a fallback
+    // when no compound object exists in the file to consult.
+    const explicitNamespaces = state.namespaceMappings.get(root.name);
+    const hasCompoundObject = Boolean(
+      explicitNamespaces && explicitNamespaces.size > 0,
     );
-    const derived = root.name.replace(/(?:Root|Provider)$/u, "");
-    if (derived && derived !== root.name) namespaces.add(derived);
+    const namespaces = new Set(explicitNamespaces ?? []);
+    if (!hasCompoundObject) {
+      const derived = root.name.replace(/(?:Root|Provider)$/u, "");
+      if (derived && derived !== root.name) namespaces.add(derived);
+    }
     for (const { candidate, node } of root.candidates) {
-      const owned = [...namespaces].some((namespace) =>
-        ownedByNamespace(candidate, namespace, root.name) ||
-        (
+      const owned = [...namespaces].some((namespace) => {
+        const isDeclaredMember =
           candidate.direct &&
-          state.partBindings.get(namespace)?.has(
-            resolveAlias(candidate.display, state.aliases),
-          )
-        ),
-      );
+          state.partBindings
+            .get(namespace)
+            ?.has(resolveAlias(candidate.display, state.aliases));
+        if (hasCompoundObject) {
+          return (
+            (!candidate.direct && candidate.namespace === namespace) ||
+            Boolean(isDeclaredMember)
+          );
+        }
+        return (
+          ownedByNamespace(candidate, namespace, root.name) ||
+          Boolean(isDeclaredMember)
+        );
+      });
       if (
         owned &&
         !state.allowedParts.has(candidate.part) &&

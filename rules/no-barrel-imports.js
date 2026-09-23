@@ -1,5 +1,8 @@
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { minimatch } from "minimatch";
+
+const INDEX_EXTENSIONS = ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"];
 
 const normalizePath = (value) => value.split(path.sep).join("/");
 
@@ -8,6 +11,26 @@ const resolveImport = (filename, source) => {
   return normalizePath(
     path.relative(process.cwd(), path.resolve(path.dirname(filename), source)),
   );
+};
+
+// A relative specifier that resolves to a directory containing an index file
+// (e.g. "./feature", ".", "..") is a barrel import even though its own text
+// never mentions "index". Detection is filesystem-backed and best-effort: any
+// filesystem error is treated as "not a directory barrel".
+const resolvesToDirectoryIndex = (filename, source) => {
+  if (!source.startsWith(".")) return false;
+
+  try {
+    const absoluteTarget = path.resolve(path.dirname(filename), source);
+    if (!existsSync(absoluteTarget) || !statSync(absoluteTarget).isDirectory()) {
+      return false;
+    }
+    return INDEX_EXTENSIONS.some((extension) =>
+      existsSync(path.join(absoluteTarget, `index.${extension}`)),
+    );
+  } catch {
+    return false;
+  }
 };
 
 // Matched against both the resolved path and the raw specifier, so a package
@@ -71,7 +94,11 @@ const rule = {
         return;
       }
 
-      if (options.checkLocalIndex !== false && isIndexImport(source)) {
+      if (
+        options.checkLocalIndex !== false &&
+        (isIndexImport(source) ||
+          resolvesToDirectoryIndex(context.filename, source))
+      ) {
         context.report({ node, messageId: "localBarrel" });
       }
     };

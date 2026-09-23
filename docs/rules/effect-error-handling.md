@@ -5,12 +5,15 @@
 Enforces an explicit Effect error channel. It reports:
 
 - `Effect.ignore`;
-- `Effect.catchAll(() => Effect.void)` and undefined success fallbacks;
+- `Effect.catchAll(() => Effect.void)` and undefined/null success fallbacks;
+- `Effect.catchTag(tag, () => Effect.void)` and `Effect.catchTags({ ... })` handlers that erase the failure the same way;
 - `Effect.catchAllCause`, which can erase defects;
 - `Effect.tapError` manual logging in business logic;
 - `Effect.fail(new Error(...))` instead of a tagged domain error.
 
 Each category has an `allow*` option for a deliberate boundary-level exception. Prefer `Schema.TaggedError`, `Effect.catchTag`, `Effect.mapError`, propagation, or a documented domain fallback.
+
+Detection resolves the callee through ESLint scope analysis, not literal `Effect.xxx` text, so `import * as Eff from "effect/Effect"; Eff.catchAll(...)` and `import { catchAll } from "effect/Effect"; catchAll(...)` are both recognized as the Effect namespace/member, provided the import comes from `effect`, `effect/Effect`, or another `effect/*` submodule. An identically named import from an unrelated package is left alone.
 
 ## Production-derived example
 

@@ -6,7 +6,7 @@ These rules adapt published engineering guidance; they do not claim those ideas 
 | --- | --- |
 | ESLint, [Create Plugins](https://eslint.org/docs/latest/extend/plugins) | Portable plugin API, flat-config presets, and rule metadata |
 | Sindre Sorhus and contributors, [eslint-plugin-unicorn](https://github.com/sindresorhus/eslint-plugin-unicorn) | Repository structure, per-rule documentation, testing, and release ergonomics |
-| TigerBeetle, [TigerStyle](https://tigerstyle.dev/) and [full style guide](https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md) | `require-assertions`, `max-function-lines`, `max-function-parameters`, `imports-first` |
+| TigerBeetle, [TigerStyle](https://tigerstyle.dev/) and [full style guide](https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md) | `require-assertions`, `require-contract-assertions`, `max-function-lines`, `max-function-parameters`, `imports-first` |
 | Marvin Hagemeister, [The barrel file debacle](https://marvinh.dev/blog/speeding-up-javascript-ecosystem-part-7/) | `no-barrel-files`, `no-barrel-imports` |
 | TkDodo, [The Vertical Codebase](https://tkdodo.eu/blog/the-vertical-codebase) | `enforce-module-boundaries` |
 | Sandro Maglione, [Components take care of themselves](https://www.sandromaglione.com/newsletter/components-take-care-of-themselves) | `declarative-components` |
@@ -17,6 +17,8 @@ These rules adapt published engineering guidance; they do not claim those ideas 
 | [Effect by Example](https://effectbyexample.com/) | `effect-error-handling`, `no-unvalidated-json-parse` |
 | Michael Arnaldi, [Effect guide](https://github.com/mikearnaldi/accountability/blob/main/specs/guides/effect-guide.md) | Effect error, schema, and dependency-injection policies |
 | Michael Arnaldi, [error-tracker specification](https://github.com/mikearnaldi/accountability/blob/main/specs/completed/error-tracker.md) | `effect-error-handling` |
+| Evolu, [Dependency Injection](https://www.evolu.dev/docs/dependency-injection) | `dependency-wrapper-shape`, `dependency-parameter-convention`, `sort-dependency-types`, `no-over-depending`, `no-exported-dependency-instances`, `no-implicit-external-dependencies` |
+| Evolu, [Conventions](https://www.evolu.dev/docs/conventions) | `named-imports`, `no-namespace-exports`, `top-down-declarations`, `prefer-arrow-functions`, `prefer-readonly-types`, `prefer-interface-over-type` |
 
 The originating project also references SurrealDB's [schema creation best practices](https://surrealdb.com/docs/surrealdb/reference-guide/schema-creation-best-practices) and [sample industry schemas](https://surrealdb.com/docs/surrealdb/reference-guide/sample-industry-schemas). Those guides require domain-aware schema review and are not represented as generic AST rules; linking them here preserves attribution without pretending a syntax check can enforce database design quality.
 

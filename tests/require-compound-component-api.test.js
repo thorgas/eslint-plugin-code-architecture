@@ -94,3 +94,38 @@ export function Screen() { return <main />; }`);
 
   expect(messages).toHaveLength(0);
 });
+
+test("ignores an object literal with a Root/Provider key whose members are not components", () => {
+  const messages = lint(`function computeRoot(x) { return Math.sqrt(x); }
+function computeSquare(x) { return x * x; }
+export const MathHelpers = { Root: computeRoot, Square: computeSquare };`);
+
+  expect(messages).toHaveLength(0);
+});
+
+test("supports Object.assign(Root, { Item, Trigger }) compound definitions", () => {
+  const messages = lint(`function Root({ children }) { return <div>{children}</div>; }
+function Item() { return <span />; }
+function Trigger() { return <button />; }
+export const Menu = Object.assign(Root, { Item, Trigger });`);
+
+  expect(messages).toHaveLength(0);
+});
+
+test("ignores an Object.assign call whose boundary is not a component", () => {
+  const messages = lint(`function computeRoot(x) { return x; }
+function Item() { return <span />; }
+function Trigger() { return <button />; }
+export const Menu = Object.assign(computeRoot, { Item, Trigger });`);
+
+  expect(messages).toHaveLength(0);
+});
+
+test("supports export default Object.assign(Root, {...}) compound definitions", () => {
+  const messages = lint(`function Root({ children }) { return <div>{children}</div>; }
+function Item() { return <span />; }
+function Trigger() { return <button />; }
+export default Object.assign(Root, { Item, Trigger });`);
+
+  expect(messages).toHaveLength(0);
+});

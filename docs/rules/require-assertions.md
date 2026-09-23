@@ -2,7 +2,18 @@
 
 Requires a minimum number of runtime assertions per function. The TigerStyle preset uses two.
 
-Default assertion names are `assert`, `assertDefined`, `nodeAssert`, and `nodeAssert.ok`. Configure `assertionNames` for application helpers, `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
+This is the broad density layer. Keep it enabled across both full-contract and lighter return-policy scopes; see [Assertion rule scoping](../assertion-scoping.md).
+
+The `agentReadiness` preset also uses two, but sets `minimumStatements: 0` and `checkExpressionBodies: true`, so empty, trivial, and concise-arrow functions are checked rather than skipped.
+
+A call counts as an assertion structurally, without any configuration:
+
+- it resolves (through ESLint scope analysis, including one level of local aliasing, e.g. `const a = nodeAssert;`) to an import from an assertion module — `assert`, `node:assert`, `node:assert/strict`, `assert/strict`, `tiny-invariant`, `invariant`, or any specifier whose last path segment is `assert`, `asserts`, `assertions`, or `invariant`. Namespace and default imports, and any member accessed off them (`a.ok(x)`, `nodeAssert.strictEqual(x, y)`), all qualify — the local name and the member name do not matter;
+- it resolves to a same-file function (declaration, `const` arrow, or `TSDeclareFunction` overload) whose return type is a TypeScript `asserts` predicate (`function assertPositive(x): asserts x is number { ... }`).
+
+`assertionNames` (default `assert`, `assertDefined`, `nodeAssert`, `nodeAssert.ok`) is a purely textual fallback on top of that: it matches the printed callee name exactly, regardless of where the callee came from, for project-specific helpers that use neither pattern above. Configure `minimum` for density, `minimumStatements` for trivial-function handling, and `checkExpressionBodies` for concise arrows.
+
+`ignoreDelegates` excludes functions whose entire body forwards to one call, including awaited calls. Use it only when the called boundary owns the contract; it is off by default, and domain adapters with meaningful validation should remain checked.
 
 ## Production-derived example
 

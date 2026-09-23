@@ -201,7 +201,6 @@ test("no-raw-design-values permits token references and unrelated literals", () 
   const messages = lintRule({
     code: `const styles = {
       card: { color: tokens.color.surface, padding: tokens.space.md },
-      chart: { color: "#ff0000", width: 16 },
       metadata: { label: "#edf0eb", count: 16 },
     };`,
     options,
@@ -248,6 +247,89 @@ test("no-raw-design-values permits approved files and narrow exceptions", () => 
       ruleName: "no-raw-design-values",
     }),
   ).toHaveLength(1);
+});
+
+test("no-raw-design-values supports pattern-based value detection", () => {
+  const messages = lintRule({
+    code: `const styles = { color: "#abc123" };`,
+    options: [
+      {
+        values: [
+          {
+            pattern: "^#[0-9a-f]{6}$",
+            properties: ["color"],
+            replacement: "tokens.color.surface",
+          },
+        ],
+      },
+    ],
+    rule,
+    ruleName: "no-raw-design-values",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("tokens.color.surface");
+});
+
+test("no-raw-design-values detects raw colors on color-like properties by default", () => {
+  const messages = lintRule({
+    code: `const styles = {
+      card: { backgroundColor: "#fff", borderColor: "rgb(0, 0, 0)" },
+    };`,
+    options: [{}],
+    rule,
+    ruleName: "no-raw-design-values",
+  });
+
+  expect(messages).toHaveLength(2);
+  expect(messages[0]?.message).toContain("an approved design token");
+});
+
+test("no-raw-design-values does not apply default color detection to non-color properties", () => {
+  const messages = lintRule({
+    code: `const styles = { testID: "#fff" };`,
+    options: [{}],
+    rule,
+    ruleName: "no-raw-design-values",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-raw-design-values does not apply default color detection to design-token identifiers", () => {
+  const messages = lintRule({
+    code: `const styles = { color: theme.colors.primary };`,
+    options: [{}],
+    rule,
+    ruleName: "no-raw-design-values",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-raw-design-values resolves an unreassigned let binding", () => {
+  const messages = lintRule({
+    code: `let raw = "#edf0eb";
+      const styles = { color: raw };`,
+    options,
+    rule,
+    ruleName: "no-raw-design-values",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("no-raw-design-values does not resolve a reassigned let binding", () => {
+  const messages = lintRule({
+    code: `let raw = "#edf0eb";
+      if (Math.random()) raw = "#000000";
+      const styles = { color: raw };`,
+    options,
+    rule,
+    ruleName: "no-raw-design-values",
+  });
+
+  expect(messages).toHaveLength(0);
 });
 
 test("no-raw-design-values rejects undeclared configuration fields", () => {

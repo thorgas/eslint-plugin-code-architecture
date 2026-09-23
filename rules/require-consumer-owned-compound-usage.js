@@ -125,8 +125,8 @@ const rule = {
       },
       JSXElement: (node) => state.elements.push(node),
       VariableDeclarator(node) {
+        if (node.id.type !== "Identifier") return;
         if (
-          node.id.type === "Identifier" &&
           node.init?.type === "ObjectExpression" &&
           node.init.properties.some(
             (property) =>
@@ -134,6 +134,24 @@ const rule = {
               property.key.type === "Identifier" &&
               state.boundaries.has(property.key.name),
           )
+        ) {
+          state.compoundNamespaces.add(node.id.name);
+          return;
+        }
+        // `Object.assign(Root, { Item, Trigger })`: the first argument is
+        // the boundary itself, so the assigned local name is a compound
+        // namespace regardless of the object literal's own keys.
+        const callee = node.init?.type === "CallExpression" && node.init.callee;
+        if (
+          callee &&
+          callee.type === "MemberExpression" &&
+          !callee.computed &&
+          callee.object.type === "Identifier" &&
+          callee.object.name === "Object" &&
+          callee.property.type === "Identifier" &&
+          callee.property.name === "assign" &&
+          node.init.arguments[0]?.type === "Identifier" &&
+          node.init.arguments[1]?.type === "ObjectExpression"
         ) {
           state.compoundNamespaces.add(node.id.name);
         }

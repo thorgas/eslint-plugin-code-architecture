@@ -51,6 +51,21 @@ test("prefer-design-system-components respects consumer and owner paths", () => 
   expect(lint(code, "src/features/profile/domain/model.ts")).toHaveLength(0);
 });
 
+test("prefer-design-system-components resolves namespace-imported JSX elements", () => {
+  const messages = lint(
+    `import * as RN from "react-native";\nconst x = <RN.button />;`,
+  );
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("@/components/ui");
+});
+
+test("prefer-design-system-components ignores namespace members without a matching element", () => {
+  expect(
+    lint(`import * as RN from "react-native";\nconst x = <RN.View />;`),
+  ).toHaveLength(0);
+});
+
 test("prefer-design-system-components allows unconfigured primitives", () => {
   expect(
     lint('import { Switch, View } from "react-native";'),

@@ -15,7 +15,7 @@ Prevents consumers from changing configured visual identity properties on design
 }]
 ```
 
-Direct JSX attributes and identity keys in inline style objects or arrays are reported. Unconfigured keys such as `margin`, `width`, and `flex` remain available for layout. Referenced style variables and component implementations are not evaluated.
+Direct JSX attributes and identity keys in inline style objects or arrays are reported. Unconfigured keys such as `margin`, `width`, and `flex` remain available for layout. A `style={identifier}` attribute is resolved back to its object-literal initializer when `identifier` is a `const` bound directly to an object expression (e.g. `const overrideStyle = { backgroundColor: 'red' }; <Button style={overrideStyle} />`); other referenced style variables and component implementations are not evaluated.
 
 This rule is excluded from every preset. Enable it only after component variants cover the supported product identities.
 
