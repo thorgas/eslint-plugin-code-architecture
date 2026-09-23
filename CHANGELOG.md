@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- Add opt-in dependency-injection, TypeScript conventions, and agent-readiness presets with portable rules for explicit dependencies, module structure, readonly contracts, and semantic runtime assertions. The TypeScript presets are library-independent; the Evolu-named exports are attribution aliases only.
+- Harden assertion analysis across aliases, return paths, mutation, worklets, trusted predicates, and configurable production boundaries.
+- Improve composition and design-system rules with structural component detection, contract-aware interactive primitives, spread and override handling, token enforcement, and compound-component support.
+- Strengthen import, barrel, Effect error-handling, JSON validation, declaration-order, namespace, and exported-instance checks while keeping framework and migration escape hatches explicit.
+
 ## 0.6.0-alpha.11
 
 - Clarify that assertion density is a heuristic, preserve intentional operational-error contracts, and document meaningful relationship assertions.
@@ -72,9 +79,9 @@
 
 ## 0.6.0-alpha.0
 
-- Add opt-in `evoluDependencyInjection` and `evoluConventions` presets derived from Evolu's dependency-injection and TypeScript convention guides.
+- Add opt-in, library-independent dependency-injection and TypeScript convention rules, initially exposed through the attribution aliases `evoluDependencyInjection` and `evoluConventions`.
 - Add twelve syntax-only rules for dependency wrappers and arguments, lean dependency requirements, implicit external access, composition-root instances, named imports, unique exports, top-down declarations, arrow functions, readonly types, and interface-first object shapes.
-- Exercise both Evolu presets through unit tests and the clean packed-package consumer smoke test.
+- Exercise both TypeScript architecture presets through unit tests and the clean packed-package consumer smoke test.
 - Add the opt-in `agentReadiness` preset, combining `strict` with assertion checks for empty, trivial, and expression-bodied functions.
 - Add `require-contract-assertions` to require semantic runtime checks for every parameter binding and nontrivial return path without counting obvious checks already covered by explicit TypeScript annotations.
 

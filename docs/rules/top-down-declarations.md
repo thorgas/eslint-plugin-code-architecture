@@ -1,6 +1,6 @@
 # top-down-declarations
 
-Orders top-level declarations for Evolu's top-down readability:
+Orders top-level declarations for general top-down TypeScript readability:
 
 1. Exported interfaces and types.
 2. Supporting interfaces and types.
