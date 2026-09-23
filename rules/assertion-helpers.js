@@ -1,6 +1,7 @@
 export const defaultAssertionNames = [
   "assert",
   "assertDefined",
+  "assertWorkletInvariant",
   "nodeAssert",
   "nodeAssert.ok",
 ];

@@ -33,3 +33,18 @@ test("assertion policy documents complementary specialized scopes", async () => 
   expect(policy).toContain("files: lighterReturnFiles");
   expect(policy).toContain("Do not start this production layout from `agentReadiness`");
 });
+
+test("assertion density policy preserves expected failure contracts", async () => {
+  const policy = (await readFile(
+    new URL("../docs/rules/require-assertions.md", import.meta.url),
+    "utf8",
+  )).replaceAll("\r\n", "\n");
+
+  expect(policy).toContain("heuristic");
+  expect(policy).toContain("average a minimum of two assertions per function");
+  expect(policy).toContain("does not establish contract completeness");
+  expect(policy).toContain("function parseOptionalAge(input: unknown): number | null");
+  expect(policy).toContain("type ParseResult");
+  expect(policy).toContain("assert(start <= end");
+  expect(policy).not.toContain("Validators generally convert their `null`-returning paths into assertions");
+});

@@ -1,6 +1,6 @@
 # dependency-wrapper-shape
 
-Requires dependency wrapper declarations to follow Evolu's distinct wrapper convention: `TimeDep` contains exactly one `readonly time: Time` property. The property name and wrapped type are derived from the wrapper name, and generic wrappers are rejected.
+Requires dependency wrapper declarations to follow a distinct, library-independent TypeScript wrapper convention: `TimeDep` contains exactly one `readonly time: Time` property. The property name and wrapped type are derived from the wrapper name, and generic wrappers are rejected.
 
 Invalid:
 

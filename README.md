@@ -63,7 +63,7 @@ export default tseslint.config(
 Presets are flat-config arrays and fall into two groups:
 
 - Library-agnostic: `recommended`, `tigerstyle`, `strict`, and `agentReadiness`. The `strict` preset combines `recommended` and `tigerstyle`; `agentReadiness` strengthens `strict` with per-function runtime contracts.
-- Optional library and architecture integrations: `effect`, `react`, `composition`, `lego`, `dependencyInjection`, and `conventions`. These are deliberately excluded from `strict`; enable them only when the corresponding library and conventions are used. `evoluDependencyInjection` and `evoluConventions` are attribution aliases of the last two.
+- Optional library and architecture integrations: `effect`, `react`, `composition`, `lego`, `dependencyInjection`, and `conventions`. These are deliberately excluded from `strict`; enable each policy set deliberately. `dependencyInjection` and `conventions` are general TypeScript architecture practices with no Evolu package or runtime dependency. `evoluDependencyInjection` and `evoluConventions` are attribution aliases of those two presets.
 
 ## Production patterns
 
@@ -355,7 +355,7 @@ The rule is deliberately excluded from every preset. It does not assume React, R
 
 Design-system adoption rules are also opt-in. Activate a rule only after the matching primitive, token family, interaction contract, dismissal pattern, or component variants exist and their intended consumers have migrated. Enabling them earlier would turn architectural feedback into suppressions rather than adoption.
 
-The `dependencyInjection` and `conventions` presets are also opt-in and syntax-only. They encode general architecture policies derived from Evolu's guides, not library-specific checks: explicit dependency contracts, composition-root instances, no ambient external access, and unique searchable exports. Treat them as conventions a codebase adopts deliberately, scoped through `files` in `eslint.config`, rather than as universal correctness rules. `no-namespace-exports` allows PascalCase compound-component objects by default so `conventions` and `lego` can share files.
+The `dependencyInjection` and `conventions` presets are also opt-in and syntax-only. They encode general TypeScript architecture practices, not Evolu-specific or other library-specific checks: explicit dependency contracts, composition-root instances, no ambient external access, and unique searchable exports. They do not import or require the Evolu library. Treat them as conventions a codebase adopts deliberately, scoped through `files` in `eslint.config`, rather than as universal correctness rules. `no-namespace-exports` allows PascalCase compound-component objects by default so `conventions` and `lego` can share files.
 
 ## Rule reference and examples
 

@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.6.0
+
+- Add opt-in dependency-injection, TypeScript conventions, and agent-readiness presets with portable rules for explicit dependencies, module structure, readonly contracts, and semantic runtime assertions. The TypeScript presets are library-independent; the Evolu-named exports are attribution aliases only.
+- Harden assertion analysis across aliases, return paths, mutation, worklets, trusted predicates, and configurable production boundaries.
+- Improve composition and design-system rules with structural component detection, contract-aware interactive primitives, spread and override handling, token enforcement, and compound-component support.
+- Strengthen import, barrel, Effect error-handling, JSON validation, declaration-order, namespace, and exported-instance checks while keeping framework and migration escape hatches explicit.
+
+## 0.6.0-alpha.11
+
+- Clarify that assertion density is a heuristic, preserve intentional operational-error contracts, and document meaningful relationship assertions.
+- Make `no-unasserted-return` follow local bindings inside conditional and logical return leaves, including assertion invalidation.
+- Add `trustedReturnImports` for alias- and shadow-safe module/export identity matching while retaining `allowedReturnCalls` as an explicitly unsafe textual escape hatch.
+
+## 0.6.0-alpha.10
+
+- Make `no-unasserted-return` check every call contributing to a returned local binding and reject postconditions invalidated by member writes using shared mutation analysis.
+- Make `require-interactive-component-contract` treat unknown JSX spreads conservatively and honor attribute override order instead of inferring accessibility and disabled behavior.
+- Document `allowedReturnCalls` as an explicit trusted-name exception and recommend receiver-specific patterns.
+
+## 0.6.0-alpha.9
+
+- Let `no-unasserted-return` accept narrow `allowedReturnCalls` minimatch patterns for return contracts that are already guaranteed by their API, such as standard boolean predicates, while keeping every unlisted call strict.
+
+## 0.6.0-alpha.8
+
+- Let `require-interactive-component-contract` trust configured primitives for press feedback only, and ignore noninteractive return paths during automatic detection while keeping explicitly named component owners strict on every JSX path.
+
+## 0.6.0-alpha.7
+
+- Make `require-contract-assertions` inspect `return await` and invalidate postconditions after direct writes to returned members or their owning object.
+- Make `no-unasserted-return` follow a returned local binding back to its call initializer and require a dominating assertion of that binding.
+- Make `require-interactive-component-contract` inspect the actual interactive element on every return path, require actual disabled wiring for every accepted unavailable prop, reject static style as press feedback, and support configured primitives nested beneath single-child providers.
+
+## 0.6.0-alpha.6
+
+- Let `require-interactive-component-contract` trust configured design-system roots through `contractComponents`. Feature wrappers inherit role, accessibility-state, and feedback ownership from those roots while still having to expose and forward their own disabled behavior and configurable content.
+
+## 0.6.0-alpha.5
+
+- Recognize `assertWorkletInvariant` as a built-in assertion helper across the assertion rules. This gives serialized Reanimated worklets an explicit invariant convention without requiring every consumer to repeat an `assertionNames` exception.
+
 ## 0.6.0-alpha.4
 
 - Detect assertions structurally in `require-assertions`, `require-contract-assertions`, and `no-unasserted-return`: any call that resolves to an import from an assertion module (`assert`, `node:assert`, `tiny-invariant`, or any path ending in `assert`/`asserts`/`assertions`/`invariant`), a one-level local alias of it, or a same-file function with a TypeScript `asserts` predicate counts without configuration. `assertionNames` remains a textual fallback.
@@ -38,9 +79,9 @@
 
 ## 0.6.0-alpha.0
 
-- Add opt-in `evoluDependencyInjection` and `evoluConventions` presets derived from Evolu's dependency-injection and TypeScript convention guides.
+- Add opt-in, library-independent dependency-injection and TypeScript convention rules, initially exposed through the attribution aliases `evoluDependencyInjection` and `evoluConventions`.
 - Add twelve syntax-only rules for dependency wrappers and arguments, lean dependency requirements, implicit external access, composition-root instances, named imports, unique exports, top-down declarations, arrow functions, readonly types, and interface-first object shapes.
-- Exercise both Evolu presets through unit tests and the clean packed-package consumer smoke test.
+- Exercise both TypeScript architecture presets through unit tests and the clean packed-package consumer smoke test.
 - Add the opt-in `agentReadiness` preset, combining `strict` with assertion checks for empty, trivial, and expression-bodied functions.
 - Add `require-contract-assertions` to require semantic runtime checks for every parameter binding and nontrivial return path without counting obvious checks already covered by explicit TypeScript annotations.
 

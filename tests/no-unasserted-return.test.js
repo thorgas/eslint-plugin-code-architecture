@@ -226,3 +226,240 @@ test("no-unasserted-return still flags returning a call from an unrelated import
   expect(messages).toHaveLength(1);
   expect(messages[0]?.messageId).toBe("unassertedReturn");
 });
+
+test("no-unasserted-return follows a returned local call binding", () => {
+  const messages = lintRule({
+    code: `
+      function example(input) {
+        const result = load(input);
+        return result;
+      }
+    `,
+    options: [{ ignoreDelegates: false }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages.map(({ messageId }) => messageId)).toEqual([
+    "unassertedReturn",
+  ]);
+});
+
+test("no-unasserted-return accepts an asserted local call binding", () => {
+  const messages = lintRule({
+    code: `
+      function example(input) {
+        const result = load(input);
+        assert(result.ok);
+        return result;
+      }
+    `,
+    options: [{ ignoreDelegates: false }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unasserted-return allows explicitly trusted return call patterns", () => {
+  const messages = lintRule({
+    code: `
+      function hasMatch(items, query) {
+        const normalized = query.trim();
+        return items.some((item) => item.label.toLowerCase().includes(normalized));
+      }
+      function matchesPath(name, path) {
+        const suffix = path.slice(1);
+        return name === suffix || name.endsWith(suffix);
+      }
+    `,
+    options: [{ allowedReturnCalls: ["*.some", "*.includes", "*.endsWith"] }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unasserted-return keeps unlisted calls strict when return patterns are configured", () => {
+  const messages = lintRule({
+    code: `
+      function load(items) {
+        prepare(items);
+        return fetchItems(items);
+      }
+    `,
+    options: [{ allowedReturnCalls: ["*.some"] }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("no-unasserted-return checks every call in a returned conditional local", () => {
+  const messages = lintRule({
+    code: `
+      function example(condition) {
+        const result = condition ? values.some(test) : load();
+        return result;
+      }
+    `,
+    options: [{ allowedReturnCalls: ["values.some"] }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("load");
+});
+
+test("no-unasserted-return checks every call in a returned logical local", () => {
+  const messages = lintRule({
+    code: `
+      function example(cached) {
+        const result = cached || values.some(test) || load();
+        return result;
+      }
+    `,
+    options: [{ allowedReturnCalls: ["values.some"] }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("load");
+});
+
+test("no-unasserted-return rejects an assertion invalidated by a member write", () => {
+  const messages = lintRule({
+    code: `
+      function example(input) {
+        const result = load(input);
+        assert(result.valid);
+        result.valid = false;
+        return result;
+      }
+    `,
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("no-unasserted-return follows local bindings in conditional return leaves", () => {
+  const messages = lintRule({
+    code: `
+      function indirect(flag) {
+        const result = load();
+        return flag ? result : null;
+      }
+    `,
+    options: [{ ignoreDelegates: false }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.message).toContain("load");
+});
+
+test("no-unasserted-return follows locals in both conditional and logical leaves", () => {
+  const messages = lintRule({
+    code: `
+      function choose(flag, cached) {
+        const primary = loadPrimary();
+        const fallback = loadFallback();
+        return flag ? primary : cached || fallback;
+      }
+    `,
+    options: [{ ignoreDelegates: false }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(2);
+});
+
+test("no-unasserted-return accepts an asserted local conditional leaf", () => {
+  const messages = lintRule({
+    code: `
+      function indirect(flag) {
+        const result = load();
+        assert(result.valid);
+        return flag ? result : null;
+      }
+    `,
+    options: [{ ignoreDelegates: false }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unasserted-return rejects a conditional local assertion invalidated by mutation", () => {
+  const messages = lintRule({
+    code: `
+      function indirect(flag) {
+        const result = load();
+        assert(result.valid);
+        result.valid = false;
+        return flag ? result : null;
+      }
+    `,
+    options: [{ ignoreDelegates: false }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+});
+
+test("no-unasserted-return trusts configured imported export identities through aliases", () => {
+  const messages = lintRule({
+    code: `
+      import { isEligible as eligible } from "@app/predicates";
+      import * as predicates from "@app/predicates";
+      function direct(value) {
+        prepare(value);
+        return eligible(value);
+      }
+      function namespaced(value) {
+        prepare(value);
+        return predicates.isEligible(value);
+      }
+    `,
+    options: [{
+      ignoreDelegates: false,
+      trustedReturnImports: [{ module: "@app/predicates", exports: ["isEligible"] }],
+    }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(0);
+});
+
+test("no-unasserted-return rejects locally shadowed trusted import names", () => {
+  const messages = lintRule({
+    code: `
+      import { isEligible } from "@app/predicates";
+      function example(value) {
+        const isEligible = repository.some;
+        prepare(value);
+        return isEligible(value);
+      }
+    `,
+    options: [{
+      ignoreDelegates: false,
+      trustedReturnImports: [{ module: "@app/predicates", exports: ["isEligible"] }],
+    }],
+    rule,
+    ruleName: "no-unasserted-return",
+  });
+
+  expect(messages).toHaveLength(1);
+});

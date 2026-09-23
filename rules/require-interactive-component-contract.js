@@ -4,7 +4,11 @@ import {
   referencedPropName,
   walkNodes,
 } from "./composition-helpers.js";
-import { jsxAttributeExpression, jsxAttributeName } from "./design-system-helpers.js";
+import {
+  jsxAttributeExpression,
+  jsxAttributeName,
+  jsxElementName,
+} from "./design-system-helpers.js";
 
 const stringArray = {
   type: "array",
@@ -70,20 +74,41 @@ const jsxElementChildren = (element) =>
       child.type === "JSXExpressionContainer",
   );
 
+const interactiveElementForRoot = (root, maximumWrappers, contract) => {
+  let current = root;
+  let wrappers = 0;
+  while (current?.type === "JSXElement") {
+    const name = jsxElementName(current.openingElement.name);
+    if (
+      hasInteractiveAttribute(current) ||
+      contract.interactiveElementNames.has(name) ||
+      contract.contractComponents.has(name)
+    ) {
+      return current;
+    }
+    if (wrappers >= maximumWrappers) return null;
+    const children = jsxElementChildren(current);
+    if (children.length !== 1 || children[0].type !== "JSXElement") {
+      return null;
+    }
+    current = children[0];
+    wrappers += 1;
+  }
+  return null;
+};
+
 // A component is an interactive primitive when the element it renders is
 // itself pressable, or when it is a single layout wrapper around one pressable
 // element. Screens and sections that merely contain buttons are not
 // interactive primitives and are left to the primitives they compose.
-const rendersInteractiveRoot = (node, sourceCode) =>
-  returnedJsxRoots(node, sourceCode).some((root) => {
-    if (hasInteractiveAttribute(root)) return true;
-    if (root.type !== "JSXElement") return false;
-    const children = jsxElementChildren(root);
-    return children.length === 1 && hasInteractiveAttribute(children[0]);
-  });
+const rendersInteractiveRoot = (node, sourceCode, contract) =>
+  returnedJsxRoots(node, sourceCode).some(
+    (root) => interactiveElementForRoot(root, 1, contract) !== null,
+  );
 
 const configuredContract = (options = {}) => ({
   componentNames: new Set(options.componentNames ?? []),
+  contractComponents: new Set(options.contractComponents ?? []),
   contentProps: new Set(
     options.contentProps ?? ["children", "label", "title", "text"],
   ),
@@ -100,8 +125,19 @@ const configuredContract = (options = {}) => ({
       "underlayColor",
     ],
   ),
+  feedbackComponents: new Set(options.feedbackComponents ?? []),
   feedbackStateNames: new Set(
     options.feedbackStateNames ?? ["pressed", "hovered", "focused", "active"],
+  ),
+  interactiveElementNames: new Set(
+    options.interactiveElementNames ?? [
+      "Pressable",
+      "PressableScale",
+      "TouchableHighlight",
+      "TouchableOpacity",
+      "TouchableWithoutFeedback",
+      "button",
+    ],
   ),
   roleAttributes: new Set(
     options.roleAttributes ?? ["accessibilityRole", "role"],
@@ -116,38 +152,6 @@ const configuredContract = (options = {}) => ({
     ],
   ),
 });
-
-// Identifiers that a JSXSpreadAttribute's argument can resolve to (one level
-// of aliasing) and still count as forwarding role/state/disabled props: the
-// props identifier itself, a rest element pulled from destructured props, or
-// a local const/let bound directly to one of those.
-const collectSpreadableIdentifiers = (node, sourceCode, props) => {
-  const names = new Set();
-  if (props.propsIdentifier) names.add(props.propsIdentifier);
-
-  const params = node.params[0];
-  if (params?.type === "ObjectPattern") {
-    const rest = params.properties.find((p) => p.type === "RestElement");
-    if (rest?.argument.type === "Identifier") names.add(rest.argument.name);
-  }
-
-  walkNodes(
-    node.body,
-    sourceCode,
-    (current) => {
-      if (current.type !== "VariableDeclarator") return;
-      if (
-        current.id.type === "Identifier" &&
-        current.init?.type === "Identifier" &&
-        names.has(current.init.name)
-      ) {
-        names.add(current.id.name);
-      }
-    },
-    { skipFunctions: true },
-  );
-  return names;
-};
 
 // Builds a map of local identifier -> prop name for one level of `const x =
 // <propRef>` aliasing, so e.g. `const isDisabled = disabled` lets attributes
@@ -174,7 +178,12 @@ const inspectAttribute = (node, state, props, sourceCode, extra) => {
   if (!attribute) return;
   if (contract.roleAttributes.has(attribute)) state.hasRole = true;
   if (contract.stateAttributes.has(attribute)) state.hasState = true;
-  if (contract.feedbackAttributes.has(attribute)) state.hasFeedback = true;
+  if (
+    contract.feedbackAttributes.has(attribute) &&
+    attribute !== "style"
+  ) {
+    state.hasFeedback = true;
+  }
 
   const expression = jsxAttributeExpression(node);
   if (!expression) return;
@@ -198,53 +207,68 @@ const inspectAttribute = (node, state, props, sourceCode, extra) => {
       (current.type === "Identifier" ? propAliases.get(current.name) : undefined);
     if (
       prop &&
-      contract.disabledProps.has(prop) &&
-      (contract.disabledAttributes.has(attribute) ||
-        contract.stateAttributes.has(attribute))
+      contract.contentProps.has(attribute) &&
+      contract.contentProps.has(prop)
     ) {
-      state.hasDisabledBehavior = true;
+      state.hasContent = true;
+    }
+    if (
+      prop &&
+      contract.disabledProps.has(prop) &&
+      contract.disabledAttributes.has(attribute)
+    ) {
+      state.disabledBehaviorProps.add(prop);
     }
   });
 };
 
-const analyzeComponent = (node, sourceCode, contract) => {
+const analyzeComponentPath = (node, interactiveElement, sourceCode, contract) => {
   const props = readPropsParameter(node.params[0]);
-  const spreadableIdentifiers = collectSpreadableIdentifiers(
-    node,
-    sourceCode,
-    props,
-  );
   const propAliases = collectPropAliases(node, sourceCode, props);
   const state = {
     acceptedProps: new Set(props.bindings.values()),
     hasContent: false,
-    hasDisabledBehavior: false,
+    disabledBehaviorProps: new Set(),
     hasFeedback: false,
-    hasInteractiveHandler: false,
     hasRole: false,
     hasState: false,
   };
 
-  state.hasInteractiveHandler = rendersInteractiveRoot(node, sourceCode);
+  const delegatesContract = contract.contractComponents.has(
+    jsxElementName(interactiveElement.openingElement.name),
+  );
+  if (contract.feedbackComponents.has(
+    jsxElementName(interactiveElement.openingElement.name),
+  )) {
+    state.hasFeedback = true;
+  }
+  if (delegatesContract) {
+    state.hasFeedback = true;
+    state.hasRole = true;
+    state.hasState = true;
+  }
 
   walkNodes(node.body, sourceCode, (current) => {
     const referenced = referencedPropName(current, props);
     if (referenced) state.acceptedProps.add(referenced);
-    if (current.type === "JSXAttribute") {
-      inspectAttribute(current, state, props, sourceCode, {
+  }, { skipFunctions: true });
+  for (const attribute of interactiveElement.openingElement.attributes) {
+    if (attribute.type === "JSXAttribute") {
+      inspectAttribute(attribute, state, props, sourceCode, {
         contract,
         propAliases,
       });
     }
-    if (
-      current.type === "JSXSpreadAttribute" &&
-      current.argument.type === "Identifier" &&
-      spreadableIdentifiers.has(current.argument.name)
-    ) {
-      state.hasRole = true;
-      state.hasState = true;
-      state.hasDisabledBehavior = true;
+    if (attribute.type === "JSXSpreadAttribute") {
+      state.hasRole = delegatesContract;
+      state.hasState = delegatesContract;
+      state.hasFeedback = delegatesContract || contract.feedbackComponents.has(
+        jsxElementName(interactiveElement.openingElement.name),
+      );
+      state.disabledBehaviorProps.clear();
     }
+  }
+  walkNodes(interactiveElement, sourceCode, (current) => {
     if (
       current.type === "JSXExpressionContainer" &&
       current.parent.type === "JSXElement"
@@ -264,13 +288,16 @@ const missingContractParts = (state, contract) => {
   const acceptsContent = [...contract.contentProps].some((name) =>
     state.acceptedProps.has(name),
   );
-  const acceptsDisabled = [...contract.disabledProps].some((name) =>
+  const acceptedDisabledProps = [...contract.disabledProps].filter((name) =>
     state.acceptedProps.has(name),
   );
+  const wiresEveryDisabledProp =
+    acceptedDisabledProps.length > 0 &&
+    acceptedDisabledProps.every((name) => state.disabledBehaviorProps.has(name));
   return [
     !state.hasRole && "accessibility role",
     !state.hasState && "accessibility state",
-    !(state.hasDisabledBehavior && acceptsDisabled) && "disabled behavior",
+    !wiresEveryDisabledProp && "disabled behavior",
     !state.hasFeedback && "press feedback",
     !(state.hasContent && acceptsContent) && "configurable content",
   ].filter(Boolean);
@@ -293,11 +320,14 @@ const rule = {
         additionalProperties: false,
         properties: {
           componentNames: stringArray,
+          contractComponents: stringArray,
           contentProps: stringArray,
           disabledAttributes: stringArray,
           disabledProps: stringArray,
           feedbackAttributes: stringArray,
+          feedbackComponents: stringArray,
           feedbackStateNames: stringArray,
+          interactiveElementNames: stringArray,
           roleAttributes: stringArray,
           stateAttributes: stringArray,
         },
@@ -314,16 +344,38 @@ const rule = {
         if (!component) return;
         const hasAllowList = contract.componentNames.size > 0;
         if (hasAllowList && !contract.componentNames.has(component)) return;
-        const state = analyzeComponent(node, sourceCode, contract);
-        if (!hasAllowList && !state.hasInteractiveHandler) return;
-        const missing = missingContractParts(state, contract);
-        if (missing.length === 0) return;
-
-        context.report({
-          node,
-          messageId: "incompleteContract",
-          data: { component, missing: missing.join(", ") },
-        });
+        if (!hasAllowList && !rendersInteractiveRoot(node, sourceCode, contract)) return;
+        const roots = returnedJsxRoots(node, sourceCode);
+        for (const root of roots) {
+          const interactiveElement = interactiveElementForRoot(
+            root,
+            hasAllowList ? Number.POSITIVE_INFINITY : 1,
+            contract,
+          );
+          if (!interactiveElement && !hasAllowList) continue;
+          const state = interactiveElement
+            ? analyzeComponentPath(
+                node,
+                interactiveElement,
+                sourceCode,
+                contract,
+              )
+            : {
+                acceptedProps: new Set(),
+                disabledBehaviorProps: new Set(),
+                hasContent: false,
+                hasFeedback: false,
+                hasRole: false,
+                hasState: false,
+              };
+          const missing = missingContractParts(state, contract);
+          if (missing.length === 0) continue;
+          context.report({
+            node: root,
+            messageId: "incompleteContract",
+            data: { component, missing: missing.join(", ") },
+          });
+        }
       },
     };
   },
